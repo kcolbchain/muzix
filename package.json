@@ -1,0 +1,19 @@
+{
+  "name": "muzix-musd",
+  "version": "1.0.0",
+  "description": "MUSD stablecoin with royalty split hooks for the Muzix platform",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@openzeppelin/contracts": "^5.0.0",
+    "chai": "^4.3.0",
+    "ethers": "^6.9.0",
+    "hardhat": "^2.22.0"
+  },
+  "license": "MIT"
+}

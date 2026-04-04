@@ -126,13 +126,58 @@ A shared protocol layer that different music businesses plug into.
 
 ```
 muzix/
-├── contracts/          # Solidity — MUSD, splits, catalog tokens, lending
-├── node/               # OP Stack node configuration
-├── sdk/                # TypeScript SDK for music apps
-├── oracle/             # Streaming revenue data feeds
-├── registry/           # Rights and splits registry
-├── docs/               # Architecture, specs, standards
-└── deploy/             # Deployment scripts and configs
+├── contracts/                # Solidity smart contracts
+│   ├── MUSD.sol              # ERC-20 stablecoin with royalty split hooks
+│   ├── RoyaltySplitter.sol   # Royalty distribution contract
+│   └── interfaces/
+│       ├── IMUSD.sol         # MUSD interface
+│       └── IRoyaltySplitter.sol  # RoyaltySplitter interface
+├── test/
+│   └── MUSD.test.js          # Hardhat test suite (45 tests)
+├── hardhat.config.js          # Hardhat configuration
+├── package.json               # Node.js dependencies
+├── node/               # OP Stack node configuration (planned)
+├── sdk/                # TypeScript SDK for music apps (planned)
+├── oracle/             # Streaming revenue data feeds (planned)
+├── registry/           # Rights and splits registry (planned)
+├── docs/               # Architecture, specs, standards (planned)
+└── deploy/             # Deployment scripts and configs (planned)
+```
+
+## MUSD Stablecoin Architecture
+
+MUSD is the music-industry settlement stablecoin built on the [stablecoin-toolkit](https://docs.kcolbchain.com/stablecoin-toolkit/).
+
+### Core Contracts
+
+**MUSD.sol** — ERC-20 token with:
+- **USD peg** maintained via authorized minter mint/burn (off-chain reserves)
+- **Royalty split hooks** — transfers to registered `RoyaltySplitter` contracts automatically trigger atomic distribution to beneficiaries
+- **Access control** — `DEFAULT_ADMIN_ROLE` manages minters and splitter registry; `MINTER_ROLE` can mint/burn
+- **Pausable** — admin can pause all transfers for emergency stops
+
+**RoyaltySplitter.sol** — Receives MUSD and distributes it:
+- Beneficiaries are registered with shares in basis points (10 000 bp = 100%)
+- When MUSD is transferred to a splitter, `onRoyaltyReceived()` executes atomically
+- Rounding dust stays in the splitter contract
+- Events emitted for every split and individual distribution
+
+### Flow
+
+```
+Artist streams → Revenue oracle → MUSD minted → Transfer to RoyaltySplitter
+                                                        │
+                                        ┌───────────────┼───────────────┐
+                                        ▼               ▼               ▼
+                                   Artist (50%)    Producer (30%)   Label (20%)
+```
+
+### Quick Start
+
+```bash
+npm install
+npx hardhat compile
+npx hardhat test
 ```
 
 ## Contributing
