@@ -1,0 +1,28 @@
+{
+  "name": "@muzix/musd-contracts",
+  "version": "1.0.0",
+  "description": "MUSD stablecoin with built-in royalty split hooks",
+  "main": "contracts/MUSD.sol",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js",
+    "verify": "hardhat verify"
+  },
+  "keywords": [
+    "stablecoin",
+    "royalty",
+    "music",
+    "ethereum",
+    "solidity"
+  ],
+  "author": "BountyClaw",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}
