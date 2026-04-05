@@ -1,0 +1,219 @@
+version: '3.8'
+
+services:
+  # L1 Ethereum node (for testnet can use Goerli or local Anvil)
+  l1:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: muzix-l1
+    command: ["anvil", "--fork-url", "${L1_RPC_URL}", "--block-time", "12"]
+    ports:
+      - "8545:8545"
+    volumes:
+      - l1-data:/data
+    networks:
+      - muzix-network
+
+  # op-geth (Execution Layer)
+  op-geth:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101304.2
+    container_name: muzix-op-geth
+    command:
+      - --datadir=/data
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8545
+      - --http.api=eth,net,web3,engine,admin
+      - --http.vhosts=*
+      - --http.corsdomain=*
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.port=8546
+      - --ws.api=eth,net,web3,engine
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8551
+      - --authrpc.vhosts=*
+      - --authrpc.jwtsecret=/config/jwt-secret.txt
+      - --rollup.sequencerhttp=http://sequencer:8545
+      - --rollup.disabletxpoolgossip=true
+      - --bootnodes=${BOOTNODES}
+      - --networkid=${CHAIN_ID}
+      - --syncmode=full
+      - --gcmode=archive
+      - --maxpeers=10
+      - --nat=extip:${EXTERNAL_IP}
+    ports:
+      - "8545:8545"
+      - "8546:8546"
+      - "8551:8551"
+      - "30303:30303"
+      - "30303:30303/udp"
+    volumes:
+      - op-geth-data:/data
+      - ./config:/config:ro
+    networks:
+      - muzix-network
+    depends_on:
+      - l1
+    environment:
+      - CHAIN_ID=1337
+      - EXTERNAL_IP=0.0.0.0
+
+  # op-node (Consensus Layer / Rollup Node)
+  op-node:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.5.1
+    container_name: muzix-op-node
+    command:
+      - --l1=http://l1:8545
+      - --l1.rpckind=standard
+      - --l2=http://op-geth:8551
+      - --l2.jwt-secret=/config/jwt-secret.txt
+      - --sequencer.enabled
+      - --sequencer.l1-confs=4
+      - --verifier.l1-confs=4
+      - --rollup.config=/config/rollup.json
+      - --rpc.addr=0.0.0.0
+      - --rpc.port=9545
+      - --p2p.listen.ip=0.0.0.0
+      - --p2p.listen.tcp=9222
+      - --p2p.listen.udp=9222
+      - --p2p.advertise.ip=${EXTERNAL_IP}
+      - --snapshotlog.file=/data/snapshot.log
+      - --p2p.priv.path=/config/p2p-key.txt
+    ports:
+      - "9545:9545"
+      - "9222:9222"
+      - "9222:9222/udp"
+    volumes:
+      - op-node-data:/data
+      - ./config:/config:ro
+    networks:
+      - muzix-network
+    depends_on:
+      - l1
+      - op-geth
+    environment:
+      - EXTERNAL_IP=0.0.0.0
+
+  # Batch Submitter (publishes L2 transactions to L1)
+  batcher:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:v1.5.1
+    container_name: muzix-batcher
+    command:
+      - --l1-eth-rpc=http://l1:8545
+      - --l2-eth-rpc=http://op-geth:8545
+      - --rollup-rpc=http://op-node:9545
+      - --sub-safety-margin=6
+      - --poll-interval=1s
+      - --num-confirmations=1
+      - --safe-abort-nonce-too-low-count=3
+      - --resubmission-timeout=30s
+      - --rpc.addr=0.0.0.0
+      - --rpc.port=8548
+      - --rpc.enable-admin
+      - --max-channel-duration=25
+      - --l1-epoch-poll-interval=12s
+      - --mnemonic=/config/batcher-mnemonic.txt
+    ports:
+      - "8548:8548"
+    volumes:
+      - ./config:/config:ro
+    networks:
+      - muzix-network
+    depends_on:
+      - op-node
+      - op-geth
+
+  # Output Proposer (proposes L2 output roots to L1)
+  proposer:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:v1.5.1
+    container_name: muzix-proposer
+    command:
+      - --l1-eth-rpc=http://l1:8545
+      - --rollup-rpc=http://op-node:9545
+      - --poll-interval=12s
+      - --l2oo-address=${L2_OUTPUT_ORACLE}
+      - --mnemonic=/config/proposer-mnemonic.txt
+    volumes:
+      - ./config:/config:ro
+    networks:
+      - muzix-network
+    depends_on:
+      - op-node
+    environment:
+      - L2_OUTPUT_ORACLE=0x0000000000000000000000000000000000000000
+
+  # Blockscout (Block Explorer)
+  blockscout:
+    image: blockscout/blockscout:latest
+    container_name: muzix-blockscout
+    environment:
+      - DATABASE_URL=postgresql://postgres:@db:5432/blockscout
+      - ETHEREUM_JSONRPC_HTTP_URL=http://op-geth:8545
+      - ETHEREUM_JSONRPC_WS_URL=ws://op-geth:8546
+      - ETHEREUM_JSONRPC_TRACE_URL=http://op-geth:8545
+      - NETWORK=Muzix
+      - SUBNETWORK=Testnet
+      - BLOCK_TRANSFORMER=base
+      - COIN=METH
+      - DISABLE_EXCHANGE_RATES=true
+    ports:
+      - "4000:4000"
+    networks:
+      - muzix-network
+    depends_on:
+      - db
+      - op-geth
+
+  # PostgreSQL for Blockscout
+  db:
+    image: postgres:15
+    container_name: muzix-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - muzix-network
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: muzix-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - muzix-network
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: muzix-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    networks:
+      - muzix-network
+    depends_on:
+      - prometheus
+
+volumes:
+  l1-data:
+  op-geth-data:
+  op-node-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  muzix-network:
+    driver: bridge
