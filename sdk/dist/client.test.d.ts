@@ -1,0 +1,4 @@
+/**
+ * MuzixClient Tests
+ */
+export {};
