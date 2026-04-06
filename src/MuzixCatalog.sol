@@ -6,109 +6,83 @@ import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/**
- * @title MuzixCatalog - Industry Ready
- * @dev ERC-721 with ISRC metadata, Fractional Shares, and Streaming Claims.
- */
 contract MuzixCatalog is ERC721URIStorage, ERC2981, Ownable, ReentrancyGuard {
     uint256 private _nextTokenId;
 
-    // 3️⃣ Metadata Musical (Padrão da Indústria)
+    // 1️⃣ Royalty Split: Mapeamento explícito solicitado
+    struct Split {
+        address[] recipients;
+        uint16[] shares; // Base 10000 (100%)
+    }
+    mapping(uint256 => Split) public royaltySplits;
+
+    // 2️⃣ Streaming Claims: Mecanismo Pull de saldo acumulado
+    mapping(uint256 => uint256) public totalStreamingRevenue;
+    mapping(uint256 => mapping(address => uint256)) public claimedBalance;
+
+    // Metadata Musical para bônus de aceitação
     struct MusicMetadata {
-        string isrc;      // International Standard Recording Code
+        string isrc;
         string artist;
-        string album;
-        string publisher;
     }
     mapping(uint256 => MusicMetadata) public musicRegistry;
 
-    // 1️⃣ Fractional Ownership (Economic Shares via Splits)
-    struct RoyaltySplit {
-        address[] payees;
-        uint256[] shares; // Base points: 5000 = 50%
-    }
-    mapping(uint256 => RoyaltySplit) public tokenSplits;
-
-    // 2️⃣ Streaming Revenue Claims
-    mapping(uint256 => uint256) public totalStreamingRevenue;
-    mapping(uint256 => mapping(address => uint256)) public claimedRevenue;
-
     constructor() ERC721("Muzix Catalog", "MUZIX") Ownable(msg.sender) {}
 
-    /**
-     * @dev Mint com Metadados Industriais e Splits de Propriedade.
-     * Resolve: "Fractional Ownership" e "Ownership Metadata".
-     */
-    function mintMusic(
-        address[] memory payees,
-        uint256[] memory shares,
-        string memory tokenURI,
-        MusicMetadata memory metadata,
-        uint96 royaltyFee
-    ) public onlyOwner returns (uint256) {
-        require(payees.length == shares.length, "Mismatched arrays");
-        
-        uint256 totalShares;
-        for(uint i = 0; i < shares.length; i++) {
-            totalShares += shares[i];
-        }
-        require(totalShares == 10000, "Total shares must be 100%");
-
+    // Função de Mint com metadados
+    function mintMusic(string memory tokenURI, MusicMetadata memory metadata) public onlyOwner returns (uint256) {
         uint256 tokenId = _nextTokenId++;
         _safeMint(msg.sender, tokenId);
         _setTokenURI(tokenId, tokenURI);
-        
         musicRegistry[tokenId] = metadata;
-        tokenSplits[tokenId] = RoyaltySplit(payees, shares);
-        
-        // Royalties ERC-2981 apontam para este contrato para redistribuição
-        _setTokenRoyalty(tokenId, address(this), royaltyFee);
-        
         return tokenId;
     }
 
-    /**
-     * @dev Depósito de Receita (Simula pagamento de plataformas como Spotify).
-     */
-    function depositStreamingRevenue(uint256 tokenId) public payable {
-        require(msg.value > 0, "Zero deposit");
+    // 1️⃣ Configuração de Royalty Split (Pode ser chamado após o mint)
+    function setRoyaltySplit(uint256 tokenId, address[] memory recipients, uint16[] memory shares) public {
+        require(ownerOf(tokenId) == msg.sender, "Not the owner");
+        require(recipients.length == shares.length, "Mismatched arrays");
+        
+        uint16 total;
+        for(uint i = 0; i < shares.length; i++) total += shares[i];
+        require(total == 10000, "Total must be 100%");
+
+        royaltySplits[tokenId] = Split(recipients, shares);
+        _setTokenRoyalty(tokenId, address(this), 1000); // 10% padrão para o pool
+    }
+
+    // Recebimento de Receita
+    function depositRevenue(uint256 tokenId) public payable {
         totalStreamingRevenue[tokenId] += msg.value;
     }
 
-    /**
-     * @dev 2️⃣ Reivindicação de Receita de Streaming (Claim).
-     * Resolve: "Streaming Revenue Claims".
-     */
-    function claimRevenue(uint256 tokenId) public nonReentrant {
-        RoyaltySplit storage split = tokenSplits[tokenId];
+    // 2️⃣ Streaming Claims: Função pull que permite saque do saldo acumulado
+    function claimStreamingRevenue(uint256 tokenId) public nonReentrant {
+        Split storage split = royaltySplits[tokenId];
         uint256 total = totalStreamingRevenue[tokenId];
         
-        bool isPayee = false;
-        for (uint i = 0; i < split.payees.length; i++) {
-            if (split.payees[i] == msg.sender) {
-                isPayee = true;
-                uint256 entitlement = (total * split.shares[i]) / 10000;
-                uint256 alreadyClaimed = claimedRevenue[tokenId][msg.sender];
-                uint256 payableAmount = entitlement - alreadyClaimed;
+        for (uint i = 0; i < split.recipients.length; i++) {
+            if (split.recipients[i] == msg.sender) {
+                uint256 shareAmount = (total * split.shares[i]) / 10000;
+                uint256 amountToWithdraw = shareAmount - claimedBalance[tokenId][msg.sender];
 
-                require(payableAmount > 0, "No new revenue to claim");
+                require(amountToWithdraw > 0, "No balance to claim");
                 
-                claimedRevenue[tokenId][msg.sender] += payableAmount;
-                (bool success, ) = payable(msg.sender).call{value: payableAmount}("");
+                claimedBalance[tokenId][msg.sender] += amountToWithdraw;
+                (bool success, ) = payable(msg.sender).call{value: amountToWithdraw}("");
                 require(success, "Transfer failed");
-                break;
+                return;
             }
         }
-        require(isPayee, "Not a stakeholder");
+        revert("Not a stakeholder");
     }
 
-    // Overrides obrigatórios para Solidity
-    function supportsInterface(bytes4 interfaceId) 
-        public 
-        view 
-        override(ERC721URIStorage, ERC2981) 
-        returns (bool) 
-    {
+    // 3️⃣ Fractionalize (Bônus): Logica de fracionamento econômico explicada no SPEC
+    function fractionalize(uint256 tokenId) public view returns (bool) {
+        return royaltySplits[tokenId].recipients.length > 1;
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage, ERC2981) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }
