@@ -1,13 +1,16 @@
-# Muzix Catalog Specification (v1.1)
+# Muzix Protocol Specification (v1.2)
 
-## 1. Fractional Ownership Support
-Implemented via **Economic Fractioning** in the `tokenSplits` mapping. This allows multiple stakeholders to hold a percentage interest in the NFT's generated revenue without needing to wrap the ERC-721 into ERC-20 tokens, maintaining marketplace compatibility.
+## 1. Fractional Ownership (Economic Shares)
+The protocol implements fractional ownership through an on-chain cap table (`tokenSplits`). 
+- **Validation:** The system enforces a strict 100% (10000 bps) share distribution during minting.
+- **Mechanism:** Revenue is distributed proportionally to each stakeholder's share.
 
-## 2. Streaming Revenue Claims
-- **Deposit:** External platforms deposit ETH/Tokens via `depositRevenue(tokenId)`.
-- **Claim:** Stakeholders call `claimRevenue(tokenId)` to withdraw their specific share based on the configured splits.
-- **Security:** Uses the Pull-Payment pattern and `ReentrancyGuard` to prevent distribution attacks.
+## 2. Industry Standard Metadata
+Each NFT is linked to a `MusicMetadata` struct containing:
+- **ISRC:** The global standard for sound recording identification.
+- **Artist/Album/Publisher:** Essential for copyright and licensing transparency.
 
-## 3. Royalty Split Configuration
-- Fully compliant with **ERC-2981**.
-- Supports multiple recipients by pointing the ERC-2981 royalty receiver to the contract itself, which then distributes funds according to the internal `RoyaltySplit` logic.
+## 3. Streaming Revenue Claims
+- Platforms deposit ETH via `depositStreamingRevenue(tokenId)`.
+- Stakeholders use `claimRevenue(tokenId)` to withdraw their specific balance.
+- **Security:** ReentrancyGuard and Pull-Payment pattern implemented.
