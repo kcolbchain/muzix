@@ -1,0 +1,60 @@
+{
+  "name": "@kcolbchain/muzix-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Muzix music-finance protocol (MuzixCatalog, MUSD, streaming-revenue oracle).",
+  "license": "MIT",
+  "author": "kcolbchain",
+  "homepage": "https://github.com/kcolbchain/muzix",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kcolbchain/muzix.git",
+    "directory": "sdk/typescript"
+  },
+  "keywords": [
+    "muzix",
+    "music",
+    "royalties",
+    "ERC-721",
+    "ERC-2981",
+    "ISRC",
+    "MUSD",
+    "stablecoin",
+    "oracle",
+    "OP-Stack",
+    "viem"
+  ],
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "example:mint": "tsx examples/mint-catalog.ts"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
