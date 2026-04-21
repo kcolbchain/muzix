@@ -14,7 +14,12 @@ contract MuzixCatalog is ERC721URIStorage, ERC2981, Ownable, ReentrancyGuard {
         address[] recipients;
         uint16[] shares; // Base 10000 (100%)
     }
-    mapping(uint256 => Split) public royaltySplits;
+    // NOTE: kept `internal` (not `public`) because solc 0.8.20+ refuses to
+    // synthesize a getter for a mapping whose value contains dynamic arrays
+    // ("Internal or recursive type is not allowed for public state variables").
+    // External reads go through `royaltySplits(uint256)` below, which preserves
+    // the same ABI a public mapping would have exposed in older solc versions.
+    mapping(uint256 => Split) internal _royaltySplits;
 
     // 2️⃣ Streaming Claims: Mecanismo Pull de saldo acumulado
     mapping(uint256 => uint256) public totalStreamingRevenue;
@@ -47,7 +52,7 @@ contract MuzixCatalog is ERC721URIStorage, ERC2981, Ownable, ReentrancyGuard {
         for(uint i = 0; i < shares.length; i++) total += shares[i];
         require(total == 10000, "Total must be 100%");
 
-        royaltySplits[tokenId] = Split(recipients, shares);
+        _royaltySplits[tokenId] = Split(recipients, shares);
         _setTokenRoyalty(tokenId, address(this), 1000); // 10% padrão para o pool
     }
 
@@ -58,7 +63,7 @@ contract MuzixCatalog is ERC721URIStorage, ERC2981, Ownable, ReentrancyGuard {
 
     // 2️⃣ Streaming Claims: Função pull que permite saque do saldo acumulado
     function claimStreamingRevenue(uint256 tokenId) public nonReentrant {
-        Split storage split = royaltySplits[tokenId];
+        Split storage split = _royaltySplits[tokenId];
         uint256 total = totalStreamingRevenue[tokenId];
         
         for (uint i = 0; i < split.recipients.length; i++) {
@@ -79,7 +84,20 @@ contract MuzixCatalog is ERC721URIStorage, ERC2981, Ownable, ReentrancyGuard {
 
     // 3️⃣ Fractionalize (Bônus): Logica de fracionamento econômico explicada no SPEC
     function fractionalize(uint256 tokenId) public view returns (bool) {
-        return royaltySplits[tokenId].recipients.length > 1;
+        return _royaltySplits[tokenId].recipients.length > 1;
+    }
+
+    // Explicit getter replacing the auto-synthesized public getter that solc
+    // 0.8.20+ refuses to emit for `mapping(uint256 => Split)`. Signature matches
+    // what a pre-0.8.20 `public` declaration would have produced, so the SDK's
+    // `royaltySplits(tokenId) -> (address[], uint16[])` ABI stays stable.
+    function royaltySplits(uint256 tokenId)
+        public
+        view
+        returns (address[] memory recipients, uint16[] memory shares)
+    {
+        Split storage split = _royaltySplits[tokenId];
+        return (split.recipients, split.shares);
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage, ERC2981) returns (bool) {
