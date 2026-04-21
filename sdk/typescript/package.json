@@ -43,7 +43,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "example:mint": "tsx examples/mint-catalog.ts"
+    "example:mint": "tsx examples/mint-catalog.ts",
+    "example:provenance": "tsx examples/attach-ai-provenance.ts"
   },
   "dependencies": {
     "viem": "^2.21.0"

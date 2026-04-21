@@ -32,3 +32,21 @@ export class MissingOracleError extends MuzixSdkError {
     this.name = 'MissingOracleError';
   }
 }
+
+export class MissingProvenanceError extends MuzixSdkError {
+  constructor() {
+    super(
+      'No provenance registry configured. Pass `contracts.provenance` to createMuzixClient() to use provenance methods.',
+    );
+    this.name = 'MissingProvenanceError';
+  }
+}
+
+export class HumanOnlyHasModelsError extends MuzixSdkError {
+  constructor(modelCount: number) {
+    super(
+      `humanOnly=true requires aiModelTokens to be empty; got ${modelCount} model reference(s).`,
+    );
+    this.name = 'HumanOnlyHasModelsError';
+  }
+}
