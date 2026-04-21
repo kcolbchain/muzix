@@ -1,0 +1,41 @@
+name: sdk
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/typescript/**'
+      - '.github/workflows/sdk.yml'
+  pull_request:
+    paths:
+      - 'sdk/typescript/**'
+      - '.github/workflows/sdk.yml'
+
+jobs:
+  build:
+    name: typecheck + test + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: sdk/typescript/package-lock.json
+
+      - name: Install
+        run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
