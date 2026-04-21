@@ -3,6 +3,7 @@ import type { PublicClient, WalletClient } from 'viem';
 import { CatalogModule } from './catalog.js';
 import { MusdModule } from './musd.js';
 import { OracleModule } from './oracle.js';
+import { ProvenanceModule } from './provenance.js';
 import type { MuzixContracts } from './types.js';
 
 export interface CreateMuzixClientOptions {
@@ -53,6 +54,7 @@ export interface MuzixClient {
   catalog: CatalogModule;
   musd: MusdModule;
   oracle: OracleModule;
+  provenance: ProvenanceModule;
 }
 
 export function createMuzixClient(opts: CreateMuzixClientOptions): MuzixClient {
@@ -64,5 +66,10 @@ export function createMuzixClient(opts: CreateMuzixClientOptions): MuzixClient {
     catalog: new CatalogModule(contracts.catalog, publicClient, walletClient),
     musd: new MusdModule(contracts.musd, publicClient, walletClient),
     oracle: new OracleModule(contracts.oracle, publicClient, walletClient),
+    provenance: new ProvenanceModule(
+      contracts.provenance,
+      publicClient,
+      walletClient,
+    ),
   };
 }

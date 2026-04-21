@@ -8,6 +8,30 @@ export interface MuzixContracts {
   catalog: Address;
   musd: Address;
   oracle?: Address;
+  /** MuzixAIProvenance registry (erc721-ai × muzix bridge). Optional. */
+  provenance?: Address;
+}
+
+/**
+ * AI-provenance record for a MuzixCatalog token. Mirrors
+ * `AIProvenance` in src/MuzixAIProvenance.sol.
+ *
+ * - `humanOnly = true` is an on-chain attestation that no AI model was
+ *   used in the token's creation. `aiModelTokens` MUST be empty in that
+ *   case.
+ * - Otherwise `aiModelTokens` lists ERC-721-AI (or compatible) token
+ *   contracts that were referenced, and `ipLineageURIs` points at off-chain
+ *   lineage documents (model cards, training-data manifests, credits).
+ * - `provenanceHash` is a commit to the full off-chain lineage document.
+ */
+export interface AIProvenance {
+  set: boolean;
+  humanOnly: boolean;
+  aiModelTokens: Address[];
+  ipLineageURIs: string[];
+  provenanceHash: Hex;
+  /** Unix seconds — 0 when `set` is false. */
+  updatedAt: bigint;
 }
 
 /**

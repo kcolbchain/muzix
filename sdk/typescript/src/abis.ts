@@ -247,6 +247,101 @@ export const MUSDAbi = [
 ] as const;
 
 /**
+ * MuzixAIProvenance — optional AI-provenance registry keyed by
+ * (catalog address, tokenId). See src/MuzixAIProvenance.sol.
+ */
+export const MuzixAIProvenanceAbi = [
+  {
+    type: 'function',
+    name: 'getProvenance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'catalog', type: 'address' },
+      { name: 'tokenId', type: 'uint256' },
+    ],
+    outputs: [
+      {
+        name: 'record',
+        type: 'tuple',
+        components: [
+          { name: 'set', type: 'bool' },
+          { name: 'humanOnly', type: 'bool' },
+          { name: 'aiModelTokens', type: 'address[]' },
+          { name: 'ipLineageURIs', type: 'string[]' },
+          { name: 'provenanceHash', type: 'bytes32' },
+          { name: 'updatedAt', type: 'uint64' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'hasProvenance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'catalog', type: 'address' },
+      { name: 'tokenId', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'computeProvenanceHash',
+    stateMutability: 'pure',
+    inputs: [
+      { name: 'humanOnly', type: 'bool' },
+      { name: 'aiModelTokens', type: 'address[]' },
+      { name: 'ipLineageURIs', type: 'string[]' },
+    ],
+    outputs: [{ name: '', type: 'bytes32' }],
+  },
+  {
+    type: 'function',
+    name: 'setProvenance',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'catalog', type: 'address' },
+      { name: 'tokenId', type: 'uint256' },
+      { name: 'humanOnly', type: 'bool' },
+      { name: 'aiModelTokens', type: 'address[]' },
+      { name: 'ipLineageURIs', type: 'string[]' },
+      { name: 'provenanceHash', type: 'bytes32' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'clearProvenance',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'catalog', type: 'address' },
+      { name: 'tokenId', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'event',
+    name: 'ProvenanceSet',
+    inputs: [
+      { name: 'catalog', type: 'address', indexed: true },
+      { name: 'tokenId', type: 'uint256', indexed: true },
+      { name: 'provenanceHash', type: 'bytes32', indexed: false },
+      { name: 'humanOnly', type: 'bool', indexed: false },
+      { name: 'modelCount', type: 'uint256', indexed: false },
+      { name: 'uriCount', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'ProvenanceCleared',
+    inputs: [
+      { name: 'catalog', type: 'address', indexed: true },
+      { name: 'tokenId', type: 'uint256', indexed: true },
+    ],
+  },
+] as const;
+
+/**
  * IStreamingRevenueOracle — consumer interface from oracle/SPECIFICATION.md.
  *
  * Production deployments will point at the on-chain oracle contract once a
