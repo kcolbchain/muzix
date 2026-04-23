@@ -1,0 +1,47 @@
+name: forge
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  forge:
+    name: forge build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Show forge version
+        run: forge --version
+
+      - name: Install forge-std (if not vendored)
+        run: |
+          if [ ! -d "lib/forge-std" ]; then
+            git clone --depth 1 https://github.com/foundry-rs/forge-std lib/forge-std
+          fi
+
+      - name: Install OpenZeppelin contracts (for @openzeppelin remapping)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install @openzeppelin/contracts@^5.0.0
+
+      - name: forge build
+        run: forge build --sizes
+
+      - name: forge test
+        run: forge test -vvv
+
+      - name: forge fmt --check
+        run: forge fmt --check
+        continue-on-error: true

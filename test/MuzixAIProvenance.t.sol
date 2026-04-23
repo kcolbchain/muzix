@@ -132,22 +132,21 @@ contract MuzixAIProvenanceTest is Test {
     }
 
     function testRevertWhenTooManyModels() public {
-        uint256 n = registry.MAX_AI_MODEL_TOKENS() + 1;
+        // Read constants before the prank — calls on `registry` would otherwise
+        // consume vm.prank before the target setProvenance call.
+        uint256 maxModels = registry.MAX_AI_MODEL_TOKENS();
+        uint256 n = maxModels + 1;
         address[] memory models = new address[](n);
         for (uint256 i = 0; i < n; i++) {
             models[i] = address(uint160(i + 1));
         }
         string[] memory uris = new string[](0);
         bytes32 h = _hash(false, models, uris);
+        bytes memory expectedRevert =
+            abi.encodeWithSelector(MuzixAIProvenance.TooManyModels.selector, n, maxModels);
 
         vm.prank(artist);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                MuzixAIProvenance.TooManyModels.selector,
-                n,
-                registry.MAX_AI_MODEL_TOKENS()
-            )
-        );
+        vm.expectRevert(expectedRevert);
         registry.setProvenance(address(catalog), 1, false, models, uris, h);
     }
 
