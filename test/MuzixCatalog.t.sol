@@ -13,6 +13,17 @@ contract MuzixCatalogTest is Test {
         catalog = new MuzixCatalog();
     }
 
+    // MuzixCatalog mints via _safeMint, which calls onERC721Received on contract
+    // recipients. Since mintMusic() is onlyOwner and the owner here is this test
+    // contract, we implement the receiver hook so the test contract can hold tokens.
+    function onERC721Received(address, address, uint256, bytes calldata)
+        external
+        pure
+        returns (bytes4)
+    {
+        return this.onERC721Received.selector;
+    }
+
     function testMintAndMetadata() public {
         MuzixCatalog.MusicMetadata memory metadata = MuzixCatalog.MusicMetadata({
             isrc: "USRC17607839",
