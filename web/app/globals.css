@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #0a0a0a;
+  color: #f5f1e8;
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+::selection {
+  background: #f5c451;
+  color: #0a0a0a;
+}
+
+@layer components {
+  .label {
+    @apply font-mono text-[10px] uppercase tracking-[0.2em] text-ink-300;
+  }
+  .hairline {
+    @apply border-ink-700;
+  }
+  .card {
+    @apply border border-ink-700 bg-ink-900/60 backdrop-blur-sm;
+  }
+  .accent-link {
+    @apply text-muzix-accent underline-offset-4 transition-colors hover:underline;
+  }
+  .btn {
+    @apply inline-flex items-center gap-2 border border-ink-700 px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] text-ink-100 transition-colors hover:border-muzix-accent hover:text-muzix-accent;
+  }
+  .btn-accent {
+    @apply inline-flex items-center gap-2 bg-muzix-accent px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] text-ink-950 transition-colors hover:bg-ink-100;
+  }
+}
+
+/* waveform bars */
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 24px;
+}
+.bars > span {
+  width: 2px;
+  background: currentColor;
+  opacity: 0.6;
+}
