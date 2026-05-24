@@ -50,6 +50,9 @@ function Header() {
           <Link href="/catalog" className="hover:text-muzix-accent">
             Catalog
           </Link>
+          <Link href="/contracts" className="hover:text-muzix-accent">
+            Contracts
+          </Link>
           <Link href="/about" className="hover:text-muzix-accent">
             About
           </Link>
