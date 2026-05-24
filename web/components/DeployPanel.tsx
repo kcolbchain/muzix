@@ -301,7 +301,7 @@ function extractMintedTokenId(receipt: TransactionReceipt, mintedTo: Address): b
         topics: log.topics,
       });
       if (decoded.eventName === 'Transfer') {
-        const args = decoded.args as { from: Address; to: Address; tokenId: bigint };
+        const args = decoded.args as unknown as { from: Address; to: Address; tokenId: bigint };
         if (args.from.toLowerCase() === '0x0000000000000000000000000000000000000000' && args.to.toLowerCase() === mintedTo.toLowerCase()) {
           return args.tokenId;
         }

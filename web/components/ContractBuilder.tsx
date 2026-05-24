@@ -26,11 +26,14 @@ export function ContractBuilder({ slug }: { slug: string }) {
   );
 
   if (!template) return null;
+  // Capture as a non-nullable local so closures (addParty, etc.) don't trip
+  // on TS narrowing limitations across nested function scopes.
+  const t = template;
 
-  const issues = template.validate(values);
+  const issues = t.validate(values);
   const bpsSum = bpsTotalOf(values.parties);
-  const plan = template.onchain(values);
-  const draftText = template.draft(values);
+  const plan = t.onchain(values);
+  const draftText = t.draft(values);
 
   function patchField(key: string, v: string | number) {
     setValues((cur) => ({ ...cur, fields: { ...cur.fields, [key]: v } }));
@@ -49,7 +52,7 @@ export function ContractBuilder({ slug }: { slug: string }) {
       ...cur,
       parties: [
         ...cur.parties,
-        { name: '', address: '', role: template.allowedRoles[0] ?? 'Other', shareBps: 0 },
+        { name: '', address: '', role: t.allowedRoles[0] ?? 'Other', shareBps: 0 },
       ],
     }));
   }
@@ -78,16 +81,16 @@ export function ContractBuilder({ slug }: { slug: string }) {
           <div className="space-y-3">
             <PartiesEditor
               parties={values.parties}
-              allowedRoles={template.allowedRoles}
+              allowedRoles={t.allowedRoles}
               onChange={patchParty}
               onRemove={removeParty}
-              capTable={template.partiesAreCapTable}
+              capTable={t.partiesAreCapTable}
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <button onClick={addParty} className="btn">
                 + add party
               </button>
-              {template.partiesAreCapTable && (
+              {t.partiesAreCapTable && (
                 <div className="flex items-center gap-3">
                   <button onClick={autoBalance} className="btn">
                     auto-balance to 100%
@@ -102,7 +105,7 @@ export function ContractBuilder({ slug }: { slug: string }) {
         {/* Fields */}
         <Card label="02 · terms">
           <div className="grid gap-4 sm:grid-cols-2">
-            {template.fields.map((f) => (
+            {t.fields.map((f) => (
               <FieldRow
                 key={f.key}
                 def={f}
