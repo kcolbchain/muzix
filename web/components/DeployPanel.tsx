@@ -110,7 +110,7 @@ export function DeployPanel({
         const call = calls[i];
         setStatus({ kind: 'sending', step: i + 1, total: calls.length });
 
-        const resolved = resolveCall(call, { mintedTokenId, values, catalogAddress });
+        const resolved = resolveCall(call, { mintedTokenId, values, catalogAddress, forPreview: false });
 
         const hash = await wallet.writeContract({
           address: addressFor(resolved.contract),
@@ -141,7 +141,7 @@ export function DeployPanel({
   function copyCalldata() {
     const blob = calls
       .map((c, i) => {
-        const resolved = resolveCall(c, { mintedTokenId: undefined, values, catalogAddress });
+        const resolved = resolveCall(c, { mintedTokenId: undefined, values, catalogAddress, forPreview: true });
         const calldata = encodeFunctionData({
           abi: abiFor(resolved.contract),
           functionName: resolved.fn,
@@ -203,7 +203,7 @@ export function DeployPanel({
         <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed text-ink-300">
           {calls
             .map((c, i) => {
-              const resolved = resolveCall(c, { mintedTokenId: undefined, values, catalogAddress });
+              const resolved = resolveCall(c, { mintedTokenId: undefined, values, catalogAddress, forPreview: true });
               const calldata = encodeFunctionData({
                 abi: abiFor(resolved.contract),
                 functionName: resolved.fn,
@@ -258,14 +258,21 @@ function StatusLine({ status }: { status: Status }) {
 
 function resolveCall(
   call: OnchainCall,
-  ctx: { mintedTokenId: bigint | undefined; values: TemplateValues; catalogAddress: Address },
+  ctx: {
+    mintedTokenId: bigint | undefined;
+    values: TemplateValues;
+    catalogAddress: Address;
+    /** When true, unresolved placeholders fall back to safe defaults so the
+     *  caller can encode a preview. Used by the calldata preview + copy
+     *  buttons; the live deploy loop passes `false` and surfaces the error. */
+    forPreview: boolean;
+  },
 ): OnchainCall {
   const args = call.args.map((a) => {
     if (a === '__LAST_MINTED_TOKEN_ID__') {
-      if (ctx.mintedTokenId === undefined) {
-        throw new Error('Cannot resolve token id before mint — make sure mintMusic runs first.');
-      }
-      return ctx.mintedTokenId;
+      if (ctx.mintedTokenId !== undefined) return ctx.mintedTokenId;
+      if (ctx.forPreview) return 0n;
+      throw new Error('Cannot resolve token id before mint — make sure mintMusic runs first.');
     }
     if (a === '__CATALOG_ADDR__') return ctx.catalogAddress;
     return a;
