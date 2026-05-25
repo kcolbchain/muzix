@@ -844,6 +844,176 @@ SCENES.push({
   ],
 });
 
+// ─── Scene 7: "Cut a remix" ────────────────────────────────────────────
+SCENES.push({
+  name: "Cut a remix",
+  captions: [
+    "Same master, different cut. Producer wants to release an instrumental remix of the album track. As a cap-table member of the original master, he's authorised to mint a new variant.",
+    "Producer calls <code>Labelton.mintVariant(masterId, VariantKind.Remix, isrc, uri)</code>. The DAO has enabled the Remix variant kind. The cap-table doesn't move.",
+    "Variant #2 mints. 10,000 ERC-1155 units fan by the same 60/20/20 split — Sapta still 6000, Producer 2000, Label 2000. <code>Cap-table inherited by construction.</code>",
+    "Catalog has a second tradable token now. Each variant lives independently — a sync deal on the original can run alongside a streaming deal on the remix without entangling the rights.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      producer: makeAgent({ id: "producer", name: "Producer", role: "cap-table member", type: "wallet", x: cx - 300, y: cy }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "Master #1 only" }),
+      sapta:    makeAgent({ id: "sapta", name: "Sapta wallet", role: "60% share", type: "artist", x: cx + 260, y: cy - 130, shares: "6000" }),
+      prodHold: makeAgent({ id: "prodHold", name: "Producer wallet", role: "20% share", type: "wallet", x: cx + 300, y: cy, shares: "2000" }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20% share", type: "label", x: cx + 260, y: cy + 130, shares: "2000" }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "producer", to: "labelton", color: "accent", label: "mintVariant · Remix", dur: 1500 });
+      byId("producer").flash = 1;
+      setTimeout(() => { byId("labelton").note = "Master #1 + Variant #2 (Remix)"; byId("labelton").flash = 1; }, 1300);
+    },
+    (now) => {
+      setTimeout(() => addTx({ from: "labelton", to: "sapta", color: "accent", label: "+6000 v2", dur: 1100, curve: 30 }), 80);
+      setTimeout(() => addTx({ from: "labelton", to: "prodHold", color: "accent", label: "+2000 v2", dur: 1100 }), 260);
+      setTimeout(() => addTx({ from: "labelton", to: "label", color: "accent", label: "+2000 v2", dur: 1100, curve: 30 }), 440);
+      setTimeout(() => {
+        byId("sapta").glow = 0.6; byId("prodHold").glow = 0.6; byId("label").glow = 0.6;
+      }, 1500);
+    },
+    (now) => {
+      byId("labelton").note = "2 variants · same cap-table";
+      byId("labelton").glow = 0.9;
+    },
+  ],
+});
+
+// ─── Scene 8: "AI training license" ───────────────────────────────────
+SCENES.push({
+  name: "AI training license",
+  captions: [
+    "A new kind of buyer arrives. An AI model lab wants to license Sapta's catalog for training. Different rights bundle, different counterparty class.",
+    "Sapta drafts a fresh offering: <code>RightsType.FullRights</code>, non-exclusive, 1-year term, <code>$40K upfront</code>, royalty per inference. Publishes to the marketplace.",
+    "The model lab calls <code>acceptBaseTerms</code> — AI labs usually don't negotiate training-data deals, they take or leave. <code>5k MUSD bond</code> escrows.",
+    "Sapta accepts. License live. The lab can now use the catalog for training; on-chain attestation that this is consented use, not scraped. <code>MuzixAIProvenance</code> can bind every model checkpoint back to this counter id.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy }),
+      offering: makeAgent({ id: "offering", name: "Rights Offering", role: "AI-training draft", type: "contract", x: cx, y: cy, note: "" }),
+      ailab:    makeAgent({ id: "ailab", name: "AI model lab", role: "non-exclusive licensee", type: "bidder", x: cx + 300, y: cy }),
+      provenance: makeAgent({ id: "provenance", name: "AIProvenance", role: "attestation registry", type: "contract", x: cx, y: cy + 160, r: 26 }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering · AI training", dur: 1500 });
+      byId("sapta").flash = 1;
+      setTimeout(() => { byId("offering").note = "Status: Open · 1yr · $40k"; byId("offering").glow = 0.8; }, 1300);
+    },
+    (now) => {
+      addTx({ from: "ailab", to: "offering", color: "warn", label: "acceptBaseTerms · 5k MUSD bond", dur: 1500 });
+      byId("ailab").flash = 1;
+      setTimeout(() => { byId("offering").note = "+ AI lab counter"; byId("offering").flash = 1; }, 1300);
+    },
+    (now) => {
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter", dur: 1400 });
+      setTimeout(() => {
+        byId("offering").note = "Status: Accepted";
+        addTx({ from: "offering", to: "ailab", color: "ok", label: "bond → 5k MUSD", dur: 1100 });
+        byId("ailab").glow = 1;
+      }, 1200);
+    },
+    (now) => {
+      addTx({ from: "ailab", to: "provenance", color: "signal", label: "setProvenance(modelCkpt)", dur: 1300 });
+      setTimeout(() => { byId("provenance").note = "model bound to counterId"; byId("provenance").glow = 0.9; }, 1100);
+    },
+  ],
+});
+
+// ─── Scene 9: "Sync drops in" ─────────────────────────────────────────
+SCENES.push({
+  name: "Sync drops in",
+  captions: [
+    "A brand campaign needs 30 seconds of Sapta's track for an ad. Time-sensitive — they want it cleared in 48 hours.",
+    "Sapta posts a sync offering: <code>RightsType.Sync</code>, 90-day window, single-territory, <code>$8K flat</code>. No royalty tail — sync deals are usually one-shot.",
+    "The brand's agency calls <code>acceptBaseTerms</code>. Sync buyers almost never haggle — the artist's posted number is the deal or it isn't.",
+    "Sapta accepts the same day. Deal closes 47 hours ahead of campaign launch. The catalog just acted as its own sync clearing-house.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy }),
+      offering: makeAgent({ id: "offering", name: "Rights Offering", role: "sync draft", type: "contract", x: cx, y: cy, note: "" }),
+      brand:    makeAgent({ id: "brand", name: "Brand agency", role: "30-sec sync buyer", type: "bidder", x: cx + 300, y: cy }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering · Sync · 90d · $8k", dur: 1500 });
+      byId("sapta").flash = 1;
+      setTimeout(() => { byId("offering").note = "Status: Open · sync"; byId("offering").glow = 0.8; }, 1300);
+    },
+    (now) => {
+      addTx({ from: "brand", to: "offering", color: "warn", label: "acceptBaseTerms", dur: 1400 });
+      byId("brand").flash = 1;
+      setTimeout(() => { byId("offering").note = "+ brand counter"; byId("offering").flash = 1; }, 1200);
+    },
+    (now) => {
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter · same day", dur: 1300 });
+      setTimeout(() => {
+        byId("offering").note = "Status: Accepted · 47h ahead";
+        byId("brand").glow = 1;
+      }, 1100);
+    },
+  ],
+});
+
+// ─── Scene 10: "Catalogue bundle" ─────────────────────────────────────
+SCENES.push({
+  name: "Catalogue bundle",
+  captions: [
+    "Now scale up. Sapta drafts a catalogue-wide bundle — every master she controls, 5-year exclusive full rights, <code>$150K upfront / $400K MG / 70% royalty</code>. The big-ticket deal.",
+    "Three counterparties show up. Universal counters higher upfront. Sony counters higher royalty share at lower upfront. The AI lab counters with a carve-out — full rights minus training, for less.",
+    "All three bonds escrow. The marketplace works the same at catalogue scale as at single-track scale — same contract, different subject manifest.",
+    "Sapta picks Universal (highest expected value, best brand fit). Losing counters self-withdraw their bonds. Catalogue is licensed for 5 years.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "artist · catalogue", type: "artist", x: cx + 320, y: cy }),
+      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "catalogue draft", type: "contract", x: cx, y: cy, note: "" }),
+      universal: makeAgent({ id: "universal", name: "Universal", role: "$200K / 65%", type: "bidder", x: cx - 320, y: cy - 130 }),
+      sony:      makeAgent({ id: "sony", name: "Sony", role: "$130K / 75%", type: "bidder", x: cx - 360, y: cy }),
+      ailab:     makeAgent({ id: "ailab", name: "AI lab", role: "carve-out, lower", type: "bidder", x: cx - 320, y: cy + 130 }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering · catalogue · 5y · $150K", dur: 1500 });
+      setTimeout(() => { byId("offering").note = "Status: Open · catalogue"; byId("offering").glow = 0.8; }, 1300);
+    },
+    (now) => {
+      addTx({ from: "universal", to: "offering", color: "warn", label: "$200K / 65%", dur: 1400, curve: 30 });
+      setTimeout(() => addTx({ from: "sony", to: "offering", color: "warn", label: "$130K / 75%", dur: 1400 }), 250);
+      setTimeout(() => addTx({ from: "ailab", to: "offering", color: "warn", label: "training carve-out", dur: 1400, curve: -30 }), 500);
+      byId("universal").flash = 1; byId("sony").flash = 1; byId("ailab").flash = 1;
+      setTimeout(() => { byId("offering").note = "3 counters · 25k MUSD escrow"; byId("offering").flash = 1; }, 2000);
+    },
+    (now) => {
+      byId("universal").glow = 1;
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter(universal)", dur: 1500 });
+      setTimeout(() => {
+        byId("offering").note = "Status: Accepted · 5y exclusive";
+        addTx({ from: "offering", to: "universal", color: "ok", label: "bond refund", dur: 1100, curve: 30 });
+        addTx({ from: "offering", to: "sony", color: "ok", label: "bond refund", dur: 1100 });
+        addTx({ from: "offering", to: "ailab", color: "ok", label: "bond refund", dur: 1100, curve: -30 });
+      }, 1300);
+    },
+  ],
+});
+
 // ──────────────────────────────────────────────────────────────────────
 // Engine
 // ──────────────────────────────────────────────────────────────────────
