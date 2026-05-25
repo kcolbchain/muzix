@@ -1,0 +1,1213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Labelton — the rights-primitive lab</title>
+<meta name="description" content="Interactive lab of the Labelton rights primitive: ERC-1155 master + variant tokenization, immutable cap-tables, DAO-gated variant kinds, and the membership-snapshot quirk. Eight scenes." />
+<meta property="og:title" content="Labelton — the rights-primitive lab" />
+<meta property="og:description" content="Zoom into the Muzix rights primitive: registerMaster, mintVariant, cap-table snapshot, ISRC uniqueness, DAO pause. Eight scenes." />
+<style>
+  :root {
+    --bg: #070605;
+    --panel: #0f0d0a;
+    --panel-2: #171513;
+    --border: #26241f;
+    --fg: #f5f1e8;
+    --muted: #a8a29e;
+    --muted-2: #57534e;
+    --muted-3: #3a3835;
+
+    --accent: #f5c451;       /* muzix gold */
+    --accent-dim: #8a6e2c;
+    --signal: #7dd3fc;       /* contract cyan */
+    --warn: #fb923c;         /* bidder orange */
+    --ok: #34d399;
+    --hot: #f87171;
+    --dsp: #c084fc;
+    --wallet: #f5f1e8;
+    --label: #fda4af;
+    --dao: #a78bfa;          /* DAO purple */
+
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 800px at 20% 0%, #15110a 0%, #070605 60%),
+      radial-gradient(900px 600px at 100% 100%, #1a1208 0%, #070605 60%);
+    background-attachment: fixed;
+    color: var(--fg);
+    font: 14px/1.55 var(--sans);
+    overflow: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .glass {
+    background: rgba(15, 13, 10, 0.6);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  header {
+    padding: 12px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    flex-wrap: wrap;
+    background: rgba(13, 11, 8, 0.55);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  header .title {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 14px; font-weight: 600;
+    color: var(--fg);
+    letter-spacing: 0.02em;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  header .title .play-icon { color: var(--accent); }
+  header .title .tag { color: var(--muted); font-weight: 400; font-size: 12px; }
+  header .crumbs { color: var(--muted-2); font-size: 11px; font-family: var(--mono); }
+  header .links { display: flex; gap: 14px; font-size: 12px; }
+  header .links a { color: var(--muted); }
+  header .links a:hover { color: var(--accent); }
+
+  .scene-bar {
+    display: flex; gap: 6px;
+    padding: 8px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(13, 11, 8, 0.55);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    overflow-x: auto; align-items: center;
+  }
+  .scene-bar::-webkit-scrollbar { height: 0; }
+  .scene-bar button {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--muted);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    font: inherit; font-size: 12px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .scene-bar button:hover { color: var(--fg); border-color: rgba(245, 196, 81, 0.3); }
+  .scene-bar button.active {
+    background: rgba(245, 196, 81, 0.1);
+    color: var(--accent);
+    border-color: rgba(245, 196, 81, 0.4);
+  }
+  .scene-bar button .num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted-2);
+  }
+  .scene-bar button.active .num { color: var(--accent-dim); }
+  .scene-bar .placeholder {
+    color: var(--muted-2);
+    font-size: 11px;
+    padding: 5px 11px;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    margin-left: auto;
+    font-family: var(--mono);
+  }
+  .scene-bar .placeholder a { color: var(--muted); }
+  .scene-bar .placeholder a:hover { color: var(--accent); text-decoration: none; }
+
+  main {
+    position: fixed;
+    top: 96px; bottom: 0; left: 0; right: 0;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .caption {
+    position: fixed;
+    left: 50%; transform: translateX(-50%);
+    bottom: 84px;
+    max-width: 720px; width: calc(100% - 32px);
+    padding: 14px 18px;
+    border-radius: 12px;
+  }
+  .caption .scene-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .caption .scene-text {
+    font-size: 14px;
+    color: var(--fg);
+    line-height: 1.6;
+  }
+  .caption .scene-text code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: rgba(245, 196, 81, 0.08);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .transport {
+    position: fixed;
+    left: 50%; transform: translateX(-50%);
+    bottom: 16px;
+    display: flex; gap: 4px;
+    padding: 6px;
+    border-radius: 999px;
+    align-items: center;
+  }
+  .transport button {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--muted);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    width: 36px; height: 36px;
+    border-radius: 999px; cursor: pointer;
+    font: inherit; font-size: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  .transport button:hover { color: var(--accent); border-color: rgba(245, 196, 81, 0.3); }
+  .transport .play.active { color: var(--accent); background: rgba(245, 196, 81, 0.1); }
+  .transport .label {
+    color: var(--muted);
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 0 12px 0 10px;
+    display: inline-flex; align-items: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+  .transport .label .accent { color: var(--accent); }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    opacity: 0;
+    transform: translate(-50%, -120%);
+    transition: opacity 0.12s;
+    z-index: 50;
+    min-width: 120px;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip .name {
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tooltip .role {
+    color: var(--muted);
+    font-size: 10.5px;
+    margin-top: 2px;
+  }
+  .tooltip .bal {
+    color: var(--accent);
+    font-size: 11px;
+    margin-top: 6px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .tooltip .bal .musd { color: var(--ok); }
+  .tooltip .bal .shares { color: var(--accent); }
+
+  @media (max-width: 720px) {
+    header .title .tag { display: none; }
+    header .crumbs { display: none; }
+    .scene-bar { padding: 8px 12px; }
+    .caption { bottom: 84px; padding: 12px 14px; }
+    .caption .scene-text { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <span class="play-icon">▶</span><span>labelton</span>
+      <span class="tag">— the rights-primitive lab</span>
+    </div>
+    <div class="crumbs">muzix · labelton zoom-in · v0</div>
+    <div class="links">
+      <a href="./mixdown.html">← mixdown</a>
+      <a href="/">home</a>
+      <a href="/contracts">builder</a>
+      <a href="https://github.com/kcolbchain/muzix" target="_blank" rel="noreferrer noopener">github</a>
+    </div>
+  </header>
+
+  <nav class="scene-bar" id="sceneBar"></nav>
+
+  <main>
+    <canvas id="stage"></canvas>
+  </main>
+
+  <div class="caption glass" id="caption">
+    <div class="scene-name" id="sceneName"></div>
+    <div class="scene-text" id="sceneText"></div>
+  </div>
+
+  <div class="transport glass">
+    <button id="btnRestart" title="Restart scene (r)" aria-label="Restart">⟲</button>
+    <button id="btnPrev" title="Previous scene" aria-label="Previous">⏮</button>
+    <button id="btnPlay" class="play active" title="Play / pause (space)" aria-label="Play/pause">⏸</button>
+    <button id="btnStep" title="Step forward (n)" aria-label="Step">⏭</button>
+    <button id="btnNext" title="Next scene" aria-label="Next scene">⏭⏭</button>
+    <span class="label" id="stepLabel"><span class="accent">scene 1/8</span> · step 0</span>
+  </div>
+
+  <div class="tooltip glass" id="tooltip">
+    <div class="name" id="tooltipName"></div>
+    <div class="role" id="tooltipRole"></div>
+    <div class="bal" id="tooltipBal" style="display: none"></div>
+  </div>
+
+<script>
+"use strict";
+
+// ──────────────────────────────────────────────────────────────────────
+// Canvas & DPR
+// ──────────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById("stage");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.max(1, window.devicePixelRatio || 1);
+  const rect = canvas.parentElement.getBoundingClientRect();
+  W = rect.width;
+  H = rect.height;
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+
+// ──────────────────────────────────────────────────────────────────────
+// Color palette (read from CSS vars so theme changes propagate)
+// ──────────────────────────────────────────────────────────────────────
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+const COLORS = () => ({
+  fg: cssVar("--fg"),
+  muted: cssVar("--muted"),
+  muted2: cssVar("--muted-2"),
+  muted3: cssVar("--muted-3"),
+  accent: cssVar("--accent"),
+  accentDim: cssVar("--accent-dim"),
+  signal: cssVar("--signal"),
+  warn: cssVar("--warn"),
+  ok: cssVar("--ok"),
+  hot: cssVar("--hot"),
+  dsp: cssVar("--dsp"),
+  wallet: cssVar("--wallet"),
+  label: cssVar("--label"),
+  dao: cssVar("--dao"),
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Agent registry
+// ──────────────────────────────────────────────────────────────────────
+//
+// Labelton lab adds a `dao` type — purple shield — distinct from the
+// cyan contract hex so the DAO's governance role reads visually as
+// "operator" rather than "code."
+// ──────────────────────────────────────────────────────────────────────
+
+const AGENT_TYPES = {
+  artist:   { color: "accent",  shape: "circle", r: 28 },
+  contract: { color: "signal",  shape: "hex",    r: 34 },
+  bidder:   { color: "warn",    shape: "square", r: 26 },
+  label:    { color: "label",   shape: "circle", r: 24 },
+  dsp:      { color: "dsp",     shape: "diamond",r: 26 },
+  wallet:   { color: "wallet",  shape: "circle", r: 22 },
+  dao:      { color: "dao",     shape: "shield", r: 28 },
+};
+
+function makeAgent({ id, name, role, type = "wallet", x = 0, y = 0, r, color, shape, note = "", balance = null, shares = null, hidden = false }) {
+  const typeDef = AGENT_TYPES[type] || AGENT_TYPES.wallet;
+  return {
+    id, name, role, type, note,
+    x, y, targetX: x, targetY: y,
+    r: r ?? typeDef.r,
+    colorKey: color ?? typeDef.color,
+    shape: shape ?? typeDef.shape,
+    balance, shares,
+    hidden,
+    flash: 0,          // 0..1 — pulses for activity
+    glow: 0,           // 0..1 — sustained highlight
+    appear: hidden ? 0 : 1,
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Drawing primitives
+// ──────────────────────────────────────────────────────────────────────
+
+function drawCircle(x, y, r, fill, stroke, lw = 1.5) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function drawHex(x, y, r, fill, stroke, lw = 1.5) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 2;
+    const px = x + Math.cos(a) * r;
+    const py = y + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function drawSquare(x, y, r, fill, stroke, lw = 1.5) {
+  const s = r * 1.6;
+  ctx.beginPath();
+  ctx.rect(x - s / 2, y - s / 2, s, s);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function drawDiamond(x, y, r, fill, stroke, lw = 1.5) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x + r, y);
+  ctx.lineTo(x, y + r);
+  ctx.lineTo(x - r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+// Shield — used for the DAO agent. A rounded top with a pointed bottom.
+function drawShield(x, y, r, fill, stroke, lw = 1.5) {
+  const w = r * 1.5;
+  const h = r * 1.8;
+  ctx.beginPath();
+  ctx.moveTo(x - w / 2, y - h / 2 + 6);
+  ctx.quadraticCurveTo(x - w / 2, y - h / 2, x - w / 2 + 6, y - h / 2);
+  ctx.lineTo(x + w / 2 - 6, y - h / 2);
+  ctx.quadraticCurveTo(x + w / 2, y - h / 2, x + w / 2, y - h / 2 + 6);
+  ctx.lineTo(x + w / 2, y);
+  ctx.quadraticCurveTo(x + w / 2, y + h / 2 - 4, x, y + h / 2);
+  ctx.quadraticCurveTo(x - w / 2, y + h / 2 - 4, x - w / 2, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function withAlpha(hex, alpha) {
+  // hex is "#rrggbb" or "#rgb"
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function drawAgent(a) {
+  if (a.appear <= 0) return;
+  const C = COLORS();
+  const baseColor = C[a.colorKey] || a.colorKey;
+  const flashBoost = 0.4 * a.flash;
+  const glowBoost = 0.5 * a.glow;
+  const haloA = Math.min(1, 0.16 + flashBoost + glowBoost);
+  const fillA = 0.12 + flashBoost;
+  const strokeA = Math.min(1, 0.7 + flashBoost * 0.5 + glowBoost * 0.5);
+
+  // Halo
+  if (haloA > 0.16) {
+    const haloR = a.r + 8 + 6 * a.flash;
+    ctx.save();
+    ctx.globalAlpha = a.appear;
+    drawCircle(a.x, a.y, haloR, withAlpha(baseColor, haloA * 0.4));
+    ctx.restore();
+  }
+
+  // Shape
+  ctx.save();
+  ctx.globalAlpha = a.appear;
+  const fill = withAlpha(baseColor, fillA);
+  const stroke = withAlpha(baseColor, strokeA);
+  if (a.shape === "hex") drawHex(a.x, a.y, a.r, fill, stroke, 2);
+  else if (a.shape === "square") drawSquare(a.x, a.y, a.r, fill, stroke, 1.8);
+  else if (a.shape === "diamond") drawDiamond(a.x, a.y, a.r, fill, stroke, 1.8);
+  else if (a.shape === "shield") drawShield(a.x, a.y, a.r, fill, stroke, 1.8);
+  else drawCircle(a.x, a.y, a.r, fill, stroke, 1.8);
+
+  // Name label
+  ctx.fillStyle = withAlpha(C.fg, 0.92);
+  ctx.font = "600 12px " + cssVar("--mono");
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(a.name, a.x, a.y + a.r + 8);
+
+  // Role label
+  if (a.role) {
+    ctx.fillStyle = withAlpha(C.muted, 0.85);
+    ctx.font = "10.5px " + cssVar("--mono");
+    ctx.fillText(a.role, a.x, a.y + a.r + 22);
+  }
+
+  // Note (state hint above)
+  if (a.note) {
+    ctx.fillStyle = withAlpha(C.accent, 0.9);
+    ctx.font = "10px " + cssVar("--mono");
+    ctx.textBaseline = "bottom";
+    ctx.fillText(a.note, a.x, a.y - a.r - 8);
+  }
+
+  // Balance / shares (inside the shape, if set)
+  if (a.balance !== null && a.balance !== undefined) {
+    ctx.fillStyle = withAlpha(C.ok, 0.95);
+    ctx.font = "600 10px " + cssVar("--mono");
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText("$" + formatMoney(a.balance), a.x, a.y);
+  } else if (a.shares !== null && a.shares !== undefined) {
+    ctx.fillStyle = withAlpha(C.accent, 0.95);
+    ctx.font = "600 10.5px " + cssVar("--mono");
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText(a.shares + " sh", a.x, a.y);
+  }
+  ctx.restore();
+}
+
+function formatMoney(n) {
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  return Math.round(n).toString();
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Transactions (flows between agents)
+// ──────────────────────────────────────────────────────────────────────
+
+const txs = [];
+let txIdCounter = 0;
+
+function addTx({ from, to, color = "accent", label = "", dur = 1200, dotSize = 4, curve = 0 }) {
+  txIdCounter++;
+  txs.push({
+    id: txIdCounter,
+    from, to, color, label, curve,
+    t0: performance.now(),
+    dur,
+    dotSize,
+  });
+}
+
+function drawTx(tx, now) {
+  const a = byId(tx.from);
+  const b = byId(tx.to);
+  if (!a || !b) return false;
+  const u = Math.min(1, (now - tx.t0) / tx.dur);
+  if (u >= 1) return false;
+
+  const C = COLORS();
+  const color = C[tx.color] || tx.color;
+
+  // Control point for slight curve
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const nx = -dy, ny = dx; // perpendicular
+  const mag = Math.hypot(nx, ny) || 1;
+  const offset = tx.curve;
+  const cx = (a.x + b.x) / 2 + (nx / mag) * offset;
+  const cy = (a.y + b.y) / 2 + (ny / mag) * offset;
+
+  function bezier(t) {
+    const mt = 1 - t;
+    return {
+      x: mt * mt * a.x + 2 * mt * t * cx + t * t * b.x,
+      y: mt * mt * a.y + 2 * mt * t * cy + t * t * b.y,
+    };
+  }
+
+  // Trail
+  ctx.save();
+  ctx.strokeStyle = withAlpha(color, 0.18);
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath();
+  const p0 = bezier(0);
+  ctx.moveTo(p0.x, p0.y);
+  for (let s = 0.05; s <= 1; s += 0.05) {
+    const p = bezier(s);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Moving dot
+  const p = bezier(u);
+  drawCircle(p.x, p.y, tx.dotSize + 1, withAlpha(color, 0.3));
+  drawCircle(p.x, p.y, tx.dotSize, color);
+
+  // Label near the dot
+  if (tx.label) {
+    ctx.fillStyle = withAlpha(color, 0.95);
+    ctx.font = "600 10.5px " + cssVar("--mono");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(tx.label, p.x, p.y - tx.dotSize - 6);
+  }
+  ctx.restore();
+
+  return true;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────────────────────────────
+
+let agents = {};
+function byId(id) { return agents[id]; }
+let currentScene = 0;
+let currentStep = -1;
+let playing = true;
+let stepClock = 0;       // ms since last step trigger
+const STEP_INTERVAL = 1800; // ms between auto-steps
+let needsStepInit = true;
+
+// ──────────────────────────────────────────────────────────────────────
+// Scenes — each scene is { name, captions[], setup(), steps:[fn(now)] }
+//
+// The Labelton lab is the zoom-in companion to Mixdown. Each scene
+// dramatises one mechanic of the rights primitive — the contract calls,
+// the invariants, the design quirks. Captions reference the actual
+// Solidity function names; agents stand in for cap-table holders and
+// the on-chain registry.
+// ──────────────────────────────────────────────────────────────────────
+
+const SCENES = [];
+
+// ─── Scene 1: "Master gets minted" ────────────────────────────────────
+SCENES.push({
+  name: "Master gets minted",
+  captions: [
+    "Sapta walks in with a finished record. Her cap-table is decided: <code>Sapta 60% / Producer 20% / Label 20%</code> — 6000 + 2000 + 2000 basis points.",
+    "She calls <code>registerMaster(p, capTable)</code>. The shares sum to <code>10000 bps</code> exactly. ISRC, UPC, ISWC, MIR hash and the cap-table commit on-chain.",
+    "The root variant mints in the same transaction. <code>VARIANT_SUPPLY_BPS</code> = 10000 fans across the three holders — Sapta 6000, Producer 2000, Label 2000.",
+    "The cap-table is now frozen. <code>Balance IS the share.</code> No parallel mapping. ERC-1155 balances on variant #1 are the legal-weight rights record.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 280, y: cy }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "credit", type: "wallet", x: cx + 240, y: cy - 110 }),
+      label:    makeAgent({ id: "label", name: "Label", role: "credit", type: "label", x: cx + 240, y: cy + 110 }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta wallet", role: "cap-table holder", type: "wallet", x: cx + 240, y: cy, hidden: true }),
+    };
+  },
+  steps: [
+    () => { /* step 0: idle intro */ },
+    (now) => {
+      addTx({ from: "sapta", to: "labelton", color: "accent", label: "registerMaster", dur: 1600 });
+      byId("labelton").flash = 1;
+    },
+    (now) => {
+      byId("labelton").note = "Master #1 · cap-table committed";
+      byId("labelton").glow = 0.8;
+      byId("saptaHold").hidden = false;
+      byId("saptaHold").appear = 0;
+      // Fan-out: Labelton mints to the three holders
+      setTimeout(() => addTx({ from: "labelton", to: "saptaHold", color: "accent", label: "6000 units", dur: 1100, curve: 30 }), 80);
+      setTimeout(() => addTx({ from: "labelton", to: "producer", color: "accent", label: "2000 units", dur: 1100, curve: -30 }), 260);
+      setTimeout(() => addTx({ from: "labelton", to: "label", color: "accent", label: "2000 units", dur: 1100, curve: 30 }), 440);
+    },
+    (now) => {
+      byId("saptaHold").shares = "6000";
+      byId("producer").shares = "2000";
+      byId("label").shares = "2000";
+      byId("saptaHold").glow = 0.6;
+      byId("producer").glow = 0.6;
+      byId("label").glow = 0.6;
+      byId("labelton").note = "Variant #1 · root mint · 10000 fanned";
+    },
+  ],
+});
+
+// ─── Scene 2: "ISRC stays unique" ─────────────────────────────────────
+SCENES.push({
+  name: "ISRC stays unique",
+  captions: [
+    "Sapta's master is on-chain. The mapping <code>masterByIsrcRoot[\"USS1Z2600001\"]</code> now points at master #1.",
+    "A second wallet — call them Imposter — tries <code>registerMaster</code> reusing the same <code>isrcRoot</code>. The guard fires.",
+    "The contract reverts with <code>IsrcRootAlreadyRegistered(\"USS1Z2600001\")</code>. The legal identifier stays a unique key — no duplicate masters per ISRC, ever.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "registrant of #1", type: "artist", x: cx - 320, y: cy - 110, note: "USS1Z2600001" }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "Master #1 · indexed" }),
+      imposter: makeAgent({ id: "imposter", name: "Imposter", role: "stranger wallet", type: "wallet", x: cx - 320, y: cy + 110 }),
+    };
+  },
+  steps: [
+    () => {
+      byId("sapta").glow = 0.4;
+      byId("labelton").glow = 0.4;
+    },
+    (now) => {
+      addTx({ from: "imposter", to: "labelton", color: "warn", label: "registerMaster(USS1Z2600001)", dur: 1500 });
+      byId("imposter").flash = 1;
+    },
+    (now) => {
+      // Bounce back as revert
+      addTx({ from: "labelton", to: "imposter", color: "hot", label: "revert: IsrcRootAlreadyRegistered", dur: 1300, curve: 40 });
+      byId("labelton").flash = 1;
+      setTimeout(() => {
+        byId("imposter").note = "tx reverted";
+        byId("imposter").glow = 0.0;
+        byId("labelton").note = "Master #1 · ISRC locked";
+        byId("labelton").glow = 0.8;
+      }, 1100);
+    },
+  ],
+});
+
+// ─── Scene 3: "Cap-table sums or doesn't" ─────────────────────────────
+SCENES.push({
+  name: "Cap-table sums or doesn't",
+  captions: [
+    "The invariant: cap-table shares must sum to exactly <code>10000 bps</code>. Anything else is malformed and gets rejected.",
+    "Attempt #1 — Sapta 60% + Producer 25% = <code>8500 bps</code>. Calls <code>registerMaster</code>; contract reverts with <code>CapTableSharesDoNotSum(8500)</code>. Capital saved, no master created.",
+    "Attempt #2 — Sapta 60% + Producer 20% + Label 20% = <code>10000 bps</code> exactly. Same call, this time it lands. Master gets a fresh id.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "registrant", type: "artist", x: cx - 320, y: cy }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "25%", type: "wallet", x: cx + 240, y: cy - 130 }),
+      label:    makeAgent({ id: "label", name: "Label", role: "missing", type: "label", x: cx + 240, y: cy + 130, hidden: true }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "labelton", color: "warn", label: "registerMaster · bps = 8500", dur: 1500 });
+      byId("sapta").flash = 1;
+      setTimeout(() => {
+        addTx({ from: "labelton", to: "sapta", color: "hot", label: "revert: CapTableSharesDoNotSum(8500)", dur: 1300, curve: 40 });
+        byId("labelton").flash = 1;
+        byId("labelton").note = "bps != 10000 · rejected";
+      }, 1300);
+    },
+    (now) => {
+      // Label appears — third holder for 20%
+      byId("label").hidden = false;
+      byId("label").appear = 0;
+      byId("label").role = "20%";
+      byId("producer").role = "20%";
+      addTx({ from: "sapta", to: "labelton", color: "accent", label: "registerMaster · bps = 10000", dur: 1500, curve: -30 });
+      setTimeout(() => {
+        byId("labelton").note = "Master #2 · cap-table OK";
+        byId("labelton").glow = 0.8;
+        byId("sapta").shares = "6000";
+        byId("producer").shares = "2000";
+        byId("label").shares = "2000";
+      }, 1400);
+    },
+  ],
+});
+
+// ─── Scene 4: "Cut a remix" ───────────────────────────────────────────
+SCENES.push({
+  name: "Cut a remix",
+  captions: [
+    "Sapta's master is live, but variant kinds beyond <code>Master</code> default to <code>off</code>. To allow remixes, the DAO has to flip the switch.",
+    "DAO calls <code>setVariantKindAllowed(VariantKind.Remix, true)</code>. Only the protocol owner (Muzix DAO) can. Issuance is still wallet-sovereign — this is a config change, not a mint.",
+    "Producer — a cap-table member — calls <code>mintVariant(masterId, VariantKind.Remix, isrc, uri_)</code>. The membership check passes; the kind is allowed.",
+    "A new variant mints. The same cap-table fans across the new id: Sapta 6000, Producer 2000, Label 2000. By construction.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      dao:      makeAgent({ id: "dao", name: "Muzix DAO", role: "protocol owner", type: "dao", x: cx - 330, y: cy - 150 }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "Remix: disallowed" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "cap-table member · 20%", type: "wallet", x: cx - 320, y: cy + 60 }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta wallet", role: "60%", type: "wallet", x: cx + 240, y: cy - 110, shares: "6000" }),
+      producerHold: makeAgent({ id: "producerHold", name: "Producer wallet", role: "20%", type: "wallet", x: cx + 280, y: cy, shares: "2000", hidden: true }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 240, y: cy + 110, shares: "2000" }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "dao", to: "labelton", color: "dao", label: "setVariantKindAllowed(Remix, true)", dur: 1500 });
+      byId("dao").flash = 1;
+      setTimeout(() => {
+        byId("labelton").note = "Remix: allowed";
+        byId("labelton").flash = 1;
+        byId("labelton").glow = 0.6;
+      }, 1300);
+    },
+    (now) => {
+      addTx({ from: "producer", to: "labelton", color: "accent", label: "mintVariant(Remix, ...)", dur: 1500 });
+      byId("producer").flash = 1;
+      setTimeout(() => {
+        byId("labelton").note = "Variant #2 (Remix) minted";
+        byId("labelton").flash = 1;
+      }, 1300);
+    },
+    (now) => {
+      // Reveal Producer holder; fan the new variant supply to the same cap-table
+      byId("producerHold").hidden = false;
+      byId("producerHold").appear = 0;
+      setTimeout(() => addTx({ from: "labelton", to: "saptaHold", color: "accent", label: "6000", dur: 1100, curve: 30 }), 80);
+      setTimeout(() => addTx({ from: "labelton", to: "producerHold", color: "accent", label: "2000", dur: 1100 }), 260);
+      setTimeout(() => addTx({ from: "labelton", to: "label", color: "accent", label: "2000", dur: 1100, curve: -30 }), 440);
+      setTimeout(() => {
+        byId("saptaHold").glow = 0.7;
+        byId("producerHold").glow = 0.7;
+        byId("label").glow = 0.7;
+      }, 1500);
+    },
+  ],
+});
+
+// ─── Scene 5: "Not a member, not your mint" ───────────────────────────
+SCENES.push({
+  name: "Not a member, not your mint",
+  captions: [
+    "A stranger — not on the cap-table — tries to mint a variant against Sapta's master. <code>mintVariant(masterId, VariantKind.Remix, ...)</code>",
+    "Labelton iterates <code>_capTables[masterId]</code> looking for <code>msg.sender</code>. Not found. Reverts with <code>NotMasterMember(masterId, stranger)</code>. Wallet-sovereign, but cap-table-gated.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      stranger: makeAgent({ id: "stranger", name: "Stranger", role: "not on cap-table", type: "wallet", x: cx - 320, y: cy }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "cap-table: [Sapta, Producer, Label]" }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta", role: "60%", type: "artist", x: cx + 280, y: cy - 110, shares: "6000" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "20%", type: "wallet", x: cx + 320, y: cy, shares: "2000" }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 280, y: cy + 110, shares: "2000" }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "stranger", to: "labelton", color: "warn", label: "mintVariant(Remix, ...)", dur: 1500 });
+      byId("stranger").flash = 1;
+    },
+    (now) => {
+      addTx({ from: "labelton", to: "stranger", color: "hot", label: "revert: NotMasterMember", dur: 1300, curve: 40 });
+      byId("labelton").flash = 1;
+      setTimeout(() => {
+        byId("stranger").note = "tx reverted";
+        byId("labelton").note = "membership check failed";
+        byId("labelton").glow = 0.8;
+      }, 1100);
+    },
+  ],
+});
+
+// ─── Scene 6: "The membership snapshot quirk" ─────────────────────────
+SCENES.push({
+  name: "The membership snapshot quirk",
+  captions: [
+    "Variant #1 trades on the open market — ERC-1155 is composable. Sapta lists her 6000 units to a Buyer.",
+    "Sapta calls <code>safeTransferFrom(sapta, buyer, variantId, 6000, \"\")</code>. The ERC-1155 balance moves. Buyer now economically holds 60% of variant #1.",
+    "But: <code>_capTables[masterId]</code> is a frozen snapshot taken at <code>registerMaster</code>. Buyer is NOT in it. When Buyer tries <code>mintVariant</code>, it reverts with <code>NotMasterMember</code> — Sapta still owns the mint authority even with zero balance. Honest design tension: economic share ≠ mint right. Future governance call.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "cap-table seat", type: "artist", x: cx - 280, y: cy - 60, shares: "6000" }),
+      buyer:    makeAgent({ id: "buyer", name: "Buyer", role: "open-market", type: "wallet", x: cx - 280, y: cy + 130 }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx + 60, y: cy, note: "snapshot: [Sapta, Producer, Label]" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "20%", type: "wallet", x: cx + 320, y: cy - 110, shares: "2000" }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 320, y: cy + 110, shares: "2000" }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "buyer", color: "accent", label: "safeTransferFrom · 6000 units", dur: 1500 });
+      byId("sapta").flash = 1;
+      setTimeout(() => {
+        byId("sapta").shares = "0";
+        byId("buyer").shares = "6000";
+        byId("buyer").glow = 0.7;
+        byId("buyer").note = "60% economic";
+      }, 1300);
+    },
+    (now) => {
+      // Buyer tries to mint — reverts
+      addTx({ from: "buyer", to: "labelton", color: "warn", label: "mintVariant · attempt", dur: 1400 });
+      setTimeout(() => {
+        addTx({ from: "labelton", to: "buyer", color: "hot", label: "revert: NotMasterMember", dur: 1200, curve: 40 });
+        byId("labelton").flash = 1;
+        byId("sapta").glow = 0.8;
+        byId("sapta").note = "still has mint right";
+        byId("buyer").note = "economic only";
+      }, 1100);
+    },
+  ],
+});
+
+// ─── Scene 7: "AI provenance binds" ───────────────────────────────────
+SCENES.push({
+  name: "AI provenance binds",
+  captions: [
+    "Sapta wants to bind a provenance record to variant #1 — list the AI models used, the IP lineage, and a content-hash of the production notes.",
+    "She calls <code>MuzixAIProvenance.setProvenance(labelton, variantId, humanOnly=false, [aiModelTokens], [ipLineageURIs], provenanceHash)</code>. The <code>catalog</code> arg is the Labelton contract address; <code>tokenId</code> is the variant id.",
+    "The provenance record is stored, keyed by <code>(catalog, tokenId)</code>. Reads are public — labels, DSPs, sync agencies can query it without permission. Bound to the variant, not the wallet.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "minter of variant #1", type: "artist", x: cx - 320, y: cy }),
+      labelton:  makeAgent({ id: "labelton", name: "Labelton", role: "catalog address", type: "contract", x: cx, y: cy - 130 }),
+      provenance:makeAgent({ id: "provenance", name: "AIProvenance", role: "(catalog, tokenId) → record", type: "contract", x: cx, y: cy + 60, note: "" }),
+      readers:   makeAgent({ id: "readers", name: "Readers", role: "labels · DSPs · sync", type: "wallet", x: cx + 320, y: cy + 60 }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "provenance", color: "accent", label: "setProvenance(labelton, variantId, ...)", dur: 1600 });
+      byId("sapta").flash = 1;
+      // Show the catalog identifier handshake
+      setTimeout(() => addTx({ from: "labelton", to: "provenance", color: "signal", label: "catalog = labelton", dur: 1100, curve: -30 }), 400);
+    },
+    (now) => {
+      byId("provenance").note = "record stored · (labelton, #1)";
+      byId("provenance").glow = 0.9;
+      byId("provenance").flash = 1;
+    },
+    (now) => {
+      addTx({ from: "readers", to: "provenance", color: "signal", label: "getProvenance(labelton, #1)", dur: 1300, curve: 20 });
+      setTimeout(() => addTx({ from: "provenance", to: "readers", color: "signal", label: "humanOnly=false · models · lineage", dur: 1300, curve: -20 }), 1200);
+      byId("readers").flash = 1;
+    },
+  ],
+});
+
+// ─── Scene 8: "DAO emergency pause" ───────────────────────────────────
+SCENES.push({
+  name: "DAO emergency pause",
+  captions: [
+    "Something on-chain looks off. The Muzix DAO flips the pause switch — <code>setPaused(true)</code>. Only the protocol owner can.",
+    "Sapta tries to register a new master while paused. <code>registerMaster</code> hits the first guard — <code>if (paused) revert LabeltonPaused();</code> — and reverts.",
+    "DAO investigates, decides it's clear. Calls <code>setPaused(false)</code>. Pause flag clears; the contract is live again.",
+    "Sapta retries. Same call, same payload. This time the cap-table commits, the root variant mints, and the master is on-chain.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      dao:      makeAgent({ id: "dao", name: "Muzix DAO", role: "protocol owner", type: "dao", x: cx, y: cy - 170 }),
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy + 30 }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy + 30, note: "paused: false" }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta wallet", role: "cap-table holder", type: "wallet", x: cx + 260, y: cy - 50, hidden: true }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "credit", type: "wallet", x: cx + 290, y: cy + 30, hidden: true }),
+      label:    makeAgent({ id: "label", name: "Label", role: "credit", type: "label", x: cx + 260, y: cy + 110, hidden: true }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "dao", to: "labelton", color: "dao", label: "setPaused(true)", dur: 1500 });
+      byId("dao").flash = 1;
+      setTimeout(() => {
+        byId("labelton").note = "paused: true";
+        byId("labelton").glow = 0.8;
+        byId("labelton").flash = 1;
+      }, 1300);
+    },
+    (now) => {
+      addTx({ from: "sapta", to: "labelton", color: "warn", label: "registerMaster", dur: 1400 });
+      setTimeout(() => {
+        addTx({ from: "labelton", to: "sapta", color: "hot", label: "revert: LabeltonPaused", dur: 1200, curve: 40 });
+        byId("sapta").note = "tx reverted";
+      }, 1200);
+    },
+    (now) => {
+      addTx({ from: "dao", to: "labelton", color: "dao", label: "setPaused(false)", dur: 1400 });
+      setTimeout(() => {
+        byId("labelton").note = "paused: false";
+        byId("labelton").glow = 0.6;
+        byId("sapta").note = "";
+      }, 1200);
+    },
+    (now) => {
+      addTx({ from: "sapta", to: "labelton", color: "accent", label: "registerMaster (retry)", dur: 1500 });
+      byId("saptaHold").hidden = false; byId("saptaHold").appear = 0;
+      byId("producer").hidden = false; byId("producer").appear = 0;
+      byId("label").hidden = false; byId("label").appear = 0;
+      setTimeout(() => {
+        byId("labelton").note = "Master committed · root mint";
+        byId("labelton").flash = 1;
+        addTx({ from: "labelton", to: "saptaHold", color: "accent", label: "6000", dur: 1100, curve: 30 });
+        addTx({ from: "labelton", to: "producer", color: "accent", label: "2000", dur: 1100 });
+        addTx({ from: "labelton", to: "label", color: "accent", label: "2000", dur: 1100, curve: -30 });
+      }, 1400);
+      setTimeout(() => {
+        byId("saptaHold").shares = "6000";
+        byId("producer").shares = "2000";
+        byId("label").shares = "2000";
+        byId("saptaHold").glow = 0.6;
+        byId("producer").glow = 0.6;
+        byId("label").glow = 0.6;
+      }, 2700);
+    },
+  ],
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Engine
+// ──────────────────────────────────────────────────────────────────────
+
+function loadScene(i) {
+  currentScene = ((i % SCENES.length) + SCENES.length) % SCENES.length;
+  currentStep = 0;
+  txs.length = 0;
+  txIdCounter = 0;
+  SCENES[currentScene].setup();
+  // step 0 is the intro state (no animation) — run it
+  needsStepInit = true;
+  stepClock = 0;
+  updateChrome();
+}
+
+function runStep(idx) {
+  const scn = SCENES[currentScene];
+  if (idx < 0 || idx >= scn.steps.length) return;
+  // Decay glows on existing agents at each step so prior emphasis fades
+  for (const a of Object.values(agents)) {
+    a.flash = a.flash * 0.3;
+    a.glow = a.glow * 0.6;
+  }
+  scn.steps[idx](performance.now());
+}
+
+function advanceStep() {
+  const scn = SCENES[currentScene];
+  if (currentStep < scn.steps.length - 1) {
+    currentStep++;
+    runStep(currentStep);
+  } else {
+    // End of scene — loop to next scene
+    loadScene(currentScene + 1);
+  }
+  updateChrome();
+}
+
+function restartScene() {
+  loadScene(currentScene);
+}
+
+function gotoScene(i) {
+  loadScene(i);
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Tick & draw
+// ──────────────────────────────────────────────────────────────────────
+
+function tick(dt) {
+  // Initialize step 0 once at scene load
+  if (needsStepInit) {
+    runStep(0);
+    needsStepInit = false;
+  }
+
+  if (playing) {
+    stepClock += dt;
+    if (stepClock >= STEP_INTERVAL) {
+      stepClock = 0;
+      advanceStep();
+    }
+  }
+
+  // Decay flash & glow on agents
+  for (const a of Object.values(agents)) {
+    a.flash = Math.max(0, a.flash - dt * 0.0015);
+    a.glow = Math.max(0, a.glow * (1 - dt * 0.00025));
+    if (!a.hidden && a.appear < 1) a.appear = Math.min(1, a.appear + dt * 0.005);
+  }
+}
+
+function draw() {
+  const C = COLORS();
+
+  // Clear with slight ghost trail for movement
+  ctx.fillStyle = "rgba(7, 6, 5, 0.85)";
+  ctx.fillRect(0, 0, W, H);
+
+  // Scene title (subtle, top-left)
+  ctx.save();
+  ctx.fillStyle = withAlpha(C.muted2, 0.6);
+  ctx.font = "11px " + cssVar("--mono");
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("// scene " + (currentScene + 1) + " of " + SCENES.length, 24, 18);
+  ctx.restore();
+
+  // Active transactions
+  const now = performance.now();
+  for (let i = txs.length - 1; i >= 0; i--) {
+    const alive = drawTx(txs[i], now);
+    if (!alive) txs.splice(i, 1);
+  }
+
+  // Agents on top
+  for (const a of Object.values(agents)) {
+    drawAgent(a);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Chrome / DOM updates
+// ──────────────────────────────────────────────────────────────────────
+
+const sceneBar = document.getElementById("sceneBar");
+function buildSceneBar() {
+  sceneBar.innerHTML = "";
+  SCENES.forEach((scn, i) => {
+    const b = document.createElement("button");
+    b.innerHTML = `<span class="num">${(i + 1).toString().padStart(2, "0")}</span> ${scn.name}`;
+    b.onclick = () => gotoScene(i);
+    b.dataset.idx = i;
+    sceneBar.appendChild(b);
+  });
+  const ph = document.createElement("span");
+  ph.className = "placeholder";
+  ph.innerHTML = `+ add your scene <a href="https://github.com/kcolbchain/muzix/blob/main/web/public/labelton.html" target="_blank">→</a>`;
+  sceneBar.appendChild(ph);
+}
+
+const sceneName = document.getElementById("sceneName");
+const sceneText = document.getElementById("sceneText");
+const stepLabel = document.getElementById("stepLabel");
+
+function updateChrome() {
+  // Scene-bar active state
+  Array.from(sceneBar.querySelectorAll("button")).forEach((b, i) => {
+    b.classList.toggle("active", i === currentScene);
+  });
+
+  const scn = SCENES[currentScene];
+  sceneName.textContent = scn.name;
+  const caption = scn.captions[currentStep] || scn.captions[scn.captions.length - 1] || "";
+  sceneText.innerHTML = caption;
+  stepLabel.innerHTML = `<span class="accent">scene ${currentScene + 1}/${SCENES.length}</span> · step ${currentStep + 1}/${scn.captions.length}`;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Controls
+// ──────────────────────────────────────────────────────────────────────
+
+const btnPlay = document.getElementById("btnPlay");
+const btnStep = document.getElementById("btnStep");
+const btnRestart = document.getElementById("btnRestart");
+const btnPrev = document.getElementById("btnPrev");
+const btnNext = document.getElementById("btnNext");
+
+function setPlaying(p) {
+  playing = p;
+  btnPlay.textContent = playing ? "⏸" : "▶";
+  btnPlay.classList.toggle("active", playing);
+}
+
+btnPlay.onclick = () => setPlaying(!playing);
+btnStep.onclick = () => { advanceStep(); updateChrome(); };
+btnRestart.onclick = () => restartScene();
+btnPrev.onclick = () => gotoScene(currentScene - 1);
+btnNext.onclick = () => gotoScene(currentScene + 1);
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+  else if (e.code === "KeyN") { advanceStep(); updateChrome(); }
+  else if (e.code === "KeyR") { restartScene(); }
+  else if (e.code === "ArrowLeft") { gotoScene(currentScene - 1); }
+  else if (e.code === "ArrowRight") { gotoScene(currentScene + 1); }
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Tooltip on hover
+// ──────────────────────────────────────────────────────────────────────
+
+const tooltip = document.getElementById("tooltip");
+const ttName = document.getElementById("tooltipName");
+const ttRole = document.getElementById("tooltipRole");
+const ttBal = document.getElementById("tooltipBal");
+
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  let hit = null;
+  for (const a of Object.values(agents)) {
+    if (a.hidden || a.appear < 0.3) continue;
+    const dx = x - a.x, dy = y - a.y;
+    if (dx * dx + dy * dy <= (a.r + 6) * (a.r + 6)) { hit = a; break; }
+  }
+  if (hit) {
+    ttName.textContent = hit.name;
+    ttRole.textContent = hit.role;
+    if (hit.balance !== null && hit.balance !== undefined) {
+      ttBal.style.display = "block";
+      ttBal.innerHTML = `<span class="musd">$${formatMoney(hit.balance)} MUSD</span>`;
+    } else if (hit.shares !== null && hit.shares !== undefined) {
+      ttBal.style.display = "block";
+      ttBal.innerHTML = `<span class="shares">${hit.shares} shares · ERC-1155</span>`;
+    } else {
+      ttBal.style.display = "none";
+    }
+    tooltip.style.left = e.clientX + "px";
+    tooltip.style.top = e.clientY + "px";
+    tooltip.classList.add("visible");
+  } else {
+    tooltip.classList.remove("visible");
+  }
+});
+canvas.addEventListener("mouseleave", () => tooltip.classList.remove("visible"));
+
+// ──────────────────────────────────────────────────────────────────────
+// Bootstrap
+// ──────────────────────────────────────────────────────────────────────
+
+buildSceneBar();
+resize();
+loadScene(0);
+
+let lastT = performance.now();
+function loop(t) {
+  const dt = t - lastT;
+  lastT = t;
+  tick(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
