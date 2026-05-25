@@ -34,8 +34,11 @@ function Hero() {
           Built on the OP Stack.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <Link href="/catalog" className="btn-accent">
-            Explore catalog →
+          <Link href="/contracts" className="btn-accent">
+            Open contract builder →
+          </Link>
+          <Link href="/catalog" className="btn">
+            Explore catalog
           </Link>
           <a
             href="https://github.com/kcolbchain/muzix"
