@@ -10,6 +10,8 @@ export interface MuzixContracts {
   oracle?: Address;
   /** MuzixAIProvenance registry (erc721-ai × muzix bridge). Optional. */
   provenance?: Address;
+  /** MuzixRightsOffering contract for on-chain rights negotiation. Optional. */
+  rights?: Address;
 }
 
 /**
@@ -86,4 +88,49 @@ export interface StreamingRevenue {
 export interface WriteResult {
   hash: Hash;
   wait: () => Promise<void>;
+}
+
+export interface RightsBundle {
+  rightsType: number;
+  exclusive: boolean;
+  territoryHash: Hash;
+  termSeconds: bigint;
+}
+
+export interface Economics {
+  upfrontUsd: bigint;
+  minGuaranteeUsd: bigint;
+  artistRoyaltyBps: number;
+  advanceRecoupCapUsd: bigint;
+}
+
+export interface Offering {
+  artist: Address;
+  subjectHash: Hash;
+  subjectURI: string;
+  rights: RightsBundle;
+  baseTerms: Economics;
+  settlementToken: Address;
+  minBondUsd: bigint;
+  repliesDueBy: bigint;
+  createdAt: bigint;
+  status: number;
+  acceptedCounterId: bigint;
+}
+
+export interface Counter {
+  offeringId: bigint;
+  bidder: Address;
+  terms: Economics;
+  memoURI: string;
+  bondAmount: bigint;
+  status: number;
+  submittedAt: bigint;
+}
+
+export interface CounterPayload {
+  offeringId: bigint;
+  terms: Economics;
+  memoURI: string;
+  bondAmount: bigint;
 }
