@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mixdown — the Muzix protocol lab</title>
+<meta name="description" content="Interactive lab of the Muzix protocol: rights tokenization (Labelton), term-sheet marketplace (MuzixRightsOffering), streaming-revenue oracle (MuzixStreamingOracle), and MUSD royalty settlement. The closed-loop demo." />
+<meta property="og:title" content="Mixdown — the Muzix protocol lab" />
+<meta property="og:description" content="Watch a Sapta album go from rights registration → term-sheet negotiation → streaming revenue → MUSD payout. The Muzix closed loop, in 6 scenes." />
+<style>
+  :root {
+    --bg: #070605;
+    --panel: #0f0d0a;
+    --panel-2: #171513;
+    --border: #26241f;
+    --fg: #f5f1e8;
+    --muted: #a8a29e;
+    --muted-2: #57534e;
+    --muted-3: #3a3835;
+
+    --accent: #f5c451;       /* muzix gold */
+    --accent-dim: #8a6e2c;
+    --signal: #7dd3fc;       /* contract cyan */
+    --warn: #fb923c;         /* bidder orange */
+    --ok: #34d399;
+    --hot: #f87171;
+    --dsp: #c084fc;
+    --wallet: #f5f1e8;
+    --label: #fda4af;
+
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 800px at 20% 0%, #15110a 0%, #070605 60%),
+      radial-gradient(900px 600px at 100% 100%, #1a1208 0%, #070605 60%);
+    background-attachment: fixed;
+    color: var(--fg);
+    font: 14px/1.55 var(--sans);
+    overflow: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .glass {
+    background: rgba(15, 13, 10, 0.6);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  header {
+    padding: 12px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    flex-wrap: wrap;
+    background: rgba(13, 11, 8, 0.55);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  header .title {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 14px; font-weight: 600;
+    color: var(--fg);
+    letter-spacing: 0.02em;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  header .title .play-icon { color: var(--accent); }
+  header .title .tag { color: var(--muted); font-weight: 400; font-size: 12px; }
+  header .crumbs { color: var(--muted-2); font-size: 11px; font-family: var(--mono); }
+  header .links { display: flex; gap: 14px; font-size: 12px; }
+  header .links a { color: var(--muted); }
+  header .links a:hover { color: var(--accent); }
+
+  .scene-bar {
+    display: flex; gap: 6px;
+    padding: 8px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(13, 11, 8, 0.55);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    overflow-x: auto; align-items: center;
+  }
+  .scene-bar::-webkit-scrollbar { height: 0; }
+  .scene-bar button {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--muted);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    font: inherit; font-size: 12px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .scene-bar button:hover { color: var(--fg); border-color: rgba(245, 196, 81, 0.3); }
+  .scene-bar button.active {
+    background: rgba(245, 196, 81, 0.1);
+    color: var(--accent);
+    border-color: rgba(245, 196, 81, 0.4);
+  }
+  .scene-bar button .num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted-2);
+  }
+  .scene-bar button.active .num { color: var(--accent-dim); }
+  .scene-bar .placeholder {
+    color: var(--muted-2);
+    font-size: 11px;
+    padding: 5px 11px;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    margin-left: auto;
+    font-family: var(--mono);
+  }
+  .scene-bar .placeholder a { color: var(--muted); }
+  .scene-bar .placeholder a:hover { color: var(--accent); text-decoration: none; }
+
+  main {
+    position: fixed;
+    top: 96px; bottom: 0; left: 0; right: 0;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .caption {
+    position: fixed;
+    left: 50%; transform: translateX(-50%);
+    bottom: 84px;
+    max-width: 720px; width: calc(100% - 32px);
+    padding: 14px 18px;
+    border-radius: 12px;
+  }
+  .caption .scene-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .caption .scene-text {
+    font-size: 14px;
+    color: var(--fg);
+    line-height: 1.6;
+  }
+  .caption .scene-text code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: rgba(245, 196, 81, 0.08);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .transport {
+    position: fixed;
+    left: 50%; transform: translateX(-50%);
+    bottom: 16px;
+    display: flex; gap: 4px;
+    padding: 6px;
+    border-radius: 999px;
+    align-items: center;
+  }
+  .transport button {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--muted);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    width: 36px; height: 36px;
+    border-radius: 999px; cursor: pointer;
+    font: inherit; font-size: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  .transport button:hover { color: var(--accent); border-color: rgba(245, 196, 81, 0.3); }
+  .transport .play.active { color: var(--accent); background: rgba(245, 196, 81, 0.1); }
+  .transport .label {
+    color: var(--muted);
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 0 12px 0 10px;
+    display: inline-flex; align-items: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+  .transport .label .accent { color: var(--accent); }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    opacity: 0;
+    transform: translate(-50%, -120%);
+    transition: opacity 0.12s;
+    z-index: 50;
+    min-width: 120px;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip .name {
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tooltip .role {
+    color: var(--muted);
+    font-size: 10.5px;
+    margin-top: 2px;
+  }
+  .tooltip .bal {
+    color: var(--accent);
+    font-size: 11px;
+    margin-top: 6px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .tooltip .bal .musd { color: var(--ok); }
+  .tooltip .bal .shares { color: var(--accent); }
+
+  @media (max-width: 720px) {
+    header .title .tag { display: none; }
+    header .crumbs { display: none; }
+    .scene-bar { padding: 8px 12px; }
+    .caption { bottom: 84px; padding: 12px 14px; }
+    .caption .scene-text { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <span class="play-icon">▶</span><span>mixdown</span>
+      <span class="tag">— the muzix protocol lab</span>
+    </div>
+    <div class="crumbs">muzix · closed-loop demo · v0</div>
+    <div class="links">
+      <a href="/">home</a>
+      <a href="/contracts">builder</a>
+      <a href="https://github.com/kcolbchain/muzix" target="_blank" rel="noreferrer noopener">github</a>
+    </div>
+  </header>
+
+  <nav class="scene-bar" id="sceneBar"></nav>
+
+  <main>
+    <canvas id="stage"></canvas>
+  </main>
+
+  <div class="caption glass" id="caption">
+    <div class="scene-name" id="sceneName"></div>
+    <div class="scene-text" id="sceneText"></div>
+  </div>
+
+  <div class="transport glass">
+    <button id="btnRestart" title="Restart scene (r)" aria-label="Restart">⟲</button>
+    <button id="btnPrev" title="Previous scene" aria-label="Previous">⏮</button>
+    <button id="btnPlay" class="play active" title="Play / pause (space)" aria-label="Play/pause">⏸</button>
+    <button id="btnStep" title="Step forward (n)" aria-label="Step">⏭</button>
+    <button id="btnNext" title="Next scene" aria-label="Next scene">⏭⏭</button>
+    <span class="label" id="stepLabel"><span class="accent">scene 1/6</span> · step 0</span>
+  </div>
+
+  <div class="tooltip glass" id="tooltip">
+    <div class="name" id="tooltipName"></div>
+    <div class="role" id="tooltipRole"></div>
+    <div class="bal" id="tooltipBal" style="display: none"></div>
+  </div>
+
+<script>
+"use strict";
+
+// ──────────────────────────────────────────────────────────────────────
+// Canvas & DPR
+// ──────────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById("stage");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.max(1, window.devicePixelRatio || 1);
+  const rect = canvas.parentElement.getBoundingClientRect();
+  W = rect.width;
+  H = rect.height;
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+
+// ──────────────────────────────────────────────────────────────────────
+// Color palette (read from CSS vars so theme changes propagate)
+// ──────────────────────────────────────────────────────────────────────
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+const COLORS = () => ({
+  fg: cssVar("--fg"),
+  muted: cssVar("--muted"),
+  muted2: cssVar("--muted-2"),
+  muted3: cssVar("--muted-3"),
+  accent: cssVar("--accent"),
+  accentDim: cssVar("--accent-dim"),
+  signal: cssVar("--signal"),
+  warn: cssVar("--warn"),
+  ok: cssVar("--ok"),
+  hot: cssVar("--hot"),
+  dsp: cssVar("--dsp"),
+  wallet: cssVar("--wallet"),
+  label: cssVar("--label"),
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Agent registry
+// ──────────────────────────────────────────────────────────────────────
+
+const AGENT_TYPES = {
+  artist:   { color: "accent",  shape: "circle", r: 28 },
+  contract: { color: "signal",  shape: "hex",    r: 34 },
+  bidder:   { color: "warn",    shape: "square", r: 26 },
+  label:    { color: "label",   shape: "circle", r: 24 },
+  dsp:      { color: "dsp",     shape: "diamond",r: 26 },
+  wallet:   { color: "wallet",  shape: "circle", r: 22 },
+};
+
+function makeAgent({ id, name, role, type = "wallet", x = 0, y = 0, r, color, shape, note = "", balance = null, shares = null, hidden = false }) {
+  const typeDef = AGENT_TYPES[type] || AGENT_TYPES.wallet;
+  return {
+    id, name, role, type, note,
+    x, y, targetX: x, targetY: y,
+    r: r ?? typeDef.r,
+    colorKey: color ?? typeDef.color,
+    shape: shape ?? typeDef.shape,
+    balance, shares,
+    hidden,
+    flash: 0,          // 0..1 — pulses for activity
+    glow: 0,           // 0..1 — sustained highlight
+    appear: hidden ? 0 : 1,
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Drawing primitives
+// ──────────────────────────────────────────────────────────────────────
+
+function drawCircle(x, y, r, fill, stroke, lw = 1.5) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function drawHex(x, y, r, fill, stroke, lw = 1.5) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 2;
+    const px = x + Math.cos(a) * r;
+    const py = y + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function drawSquare(x, y, r, fill, stroke, lw = 1.5) {
+  const s = r * 1.6;
+  ctx.beginPath();
+  ctx.rect(x - s / 2, y - s / 2, s, s);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function drawDiamond(x, y, r, fill, stroke, lw = 1.5) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x + r, y);
+  ctx.lineTo(x, y + r);
+  ctx.lineTo(x - r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
+function withAlpha(hex, alpha) {
+  // hex is "#rrggbb" or "#rgb"
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function drawAgent(a) {
+  if (a.appear <= 0) return;
+  const C = COLORS();
+  const baseColor = C[a.colorKey] || a.colorKey;
+  const flashBoost = 0.4 * a.flash;
+  const glowBoost = 0.5 * a.glow;
+  const haloA = Math.min(1, 0.16 + flashBoost + glowBoost);
+  const fillA = 0.12 + flashBoost;
+  const strokeA = Math.min(1, 0.7 + flashBoost * 0.5 + glowBoost * 0.5);
+
+  // Halo
+  if (haloA > 0.16) {
+    const haloR = a.r + 8 + 6 * a.flash;
+    ctx.save();
+    ctx.globalAlpha = a.appear;
+    drawCircle(a.x, a.y, haloR, withAlpha(baseColor, haloA * 0.4));
+    ctx.restore();
+  }
+
+  // Shape
+  ctx.save();
+  ctx.globalAlpha = a.appear;
+  const fill = withAlpha(baseColor, fillA);
+  const stroke = withAlpha(baseColor, strokeA);
+  if (a.shape === "hex") drawHex(a.x, a.y, a.r, fill, stroke, 2);
+  else if (a.shape === "square") drawSquare(a.x, a.y, a.r, fill, stroke, 1.8);
+  else if (a.shape === "diamond") drawDiamond(a.x, a.y, a.r, fill, stroke, 1.8);
+  else drawCircle(a.x, a.y, a.r, fill, stroke, 1.8);
+
+  // Name label
+  ctx.fillStyle = withAlpha(C.fg, 0.92);
+  ctx.font = "600 12px " + cssVar("--mono");
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(a.name, a.x, a.y + a.r + 8);
+
+  // Role label
+  if (a.role) {
+    ctx.fillStyle = withAlpha(C.muted, 0.85);
+    ctx.font = "10.5px " + cssVar("--mono");
+    ctx.fillText(a.role, a.x, a.y + a.r + 22);
+  }
+
+  // Note (state hint above)
+  if (a.note) {
+    ctx.fillStyle = withAlpha(C.accent, 0.9);
+    ctx.font = "10px " + cssVar("--mono");
+    ctx.textBaseline = "bottom";
+    ctx.fillText(a.note, a.x, a.y - a.r - 8);
+  }
+
+  // Balance / shares (inside the shape, if set)
+  if (a.balance !== null && a.balance !== undefined) {
+    ctx.fillStyle = withAlpha(C.ok, 0.95);
+    ctx.font = "600 10px " + cssVar("--mono");
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText("$" + formatMoney(a.balance), a.x, a.y);
+  } else if (a.shares !== null && a.shares !== undefined) {
+    ctx.fillStyle = withAlpha(C.accent, 0.95);
+    ctx.font = "600 10.5px " + cssVar("--mono");
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText(a.shares + " sh", a.x, a.y);
+  }
+  ctx.restore();
+}
+
+function formatMoney(n) {
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  return Math.round(n).toString();
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Transactions (flows between agents)
+// ──────────────────────────────────────────────────────────────────────
+
+const txs = [];
+let txIdCounter = 0;
+
+function addTx({ from, to, color = "accent", label = "", dur = 1200, dotSize = 4, curve = 0 }) {
+  txIdCounter++;
+  txs.push({
+    id: txIdCounter,
+    from, to, color, label, curve,
+    t0: performance.now(),
+    dur,
+    dotSize,
+  });
+}
+
+function drawTx(tx, now) {
+  const a = byId(tx.from);
+  const b = byId(tx.to);
+  if (!a || !b) return false;
+  const u = Math.min(1, (now - tx.t0) / tx.dur);
+  if (u >= 1) return false;
+
+  const C = COLORS();
+  const color = C[tx.color] || tx.color;
+
+  // Control point for slight curve
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const nx = -dy, ny = dx; // perpendicular
+  const mag = Math.hypot(nx, ny) || 1;
+  const offset = tx.curve;
+  const cx = (a.x + b.x) / 2 + (nx / mag) * offset;
+  const cy = (a.y + b.y) / 2 + (ny / mag) * offset;
+
+  function bezier(t) {
+    const mt = 1 - t;
+    return {
+      x: mt * mt * a.x + 2 * mt * t * cx + t * t * b.x,
+      y: mt * mt * a.y + 2 * mt * t * cy + t * t * b.y,
+    };
+  }
+
+  // Trail
+  ctx.save();
+  ctx.strokeStyle = withAlpha(color, 0.18);
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath();
+  const p0 = bezier(0);
+  ctx.moveTo(p0.x, p0.y);
+  for (let s = 0.05; s <= 1; s += 0.05) {
+    const p = bezier(s);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Moving dot
+  const p = bezier(u);
+  drawCircle(p.x, p.y, tx.dotSize + 1, withAlpha(color, 0.3));
+  drawCircle(p.x, p.y, tx.dotSize, color);
+
+  // Label near the dot
+  if (tx.label) {
+    ctx.fillStyle = withAlpha(color, 0.95);
+    ctx.font = "600 10.5px " + cssVar("--mono");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(tx.label, p.x, p.y - tx.dotSize - 6);
+  }
+  ctx.restore();
+
+  return true;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────────────────────────────
+
+let agents = {};
+function byId(id) { return agents[id]; }
+let currentScene = 0;
+let currentStep = -1;
+let playing = true;
+let stepClock = 0;       // ms since last step trigger
+const STEP_INTERVAL = 1800; // ms between auto-steps
+let needsStepInit = true;
+
+// ──────────────────────────────────────────────────────────────────────
+// Scenes — each scene is { name, caption(step), setup(), steps:[fn(now)] }
+// ──────────────────────────────────────────────────────────────────────
+
+const SCENES = [];
+
+// ─── Scene 1: "Drop the master" ───────────────────────────────────────
+SCENES.push({
+  name: "Drop the master",
+  captions: [
+    "Sapta walks into the studio with a finished album. The cap-table is decided: <code>Sapta 60%</code>, <code>Producer 20%</code>, <code>Label 20%</code>.",
+    "Sapta calls <code>Labelton.registerMaster</code>. ISRC, UPC, ISWC, MIR hash, legal-id hash and the cap-table commit on-chain — immutable from here.",
+    "The root variant mints. 10,000 ERC-1155 units fan across the cap-table in basis points. <code>Balance IS the share.</code>",
+    "Cap-table holders now hold their proportional share on-chain. Variants minted under this master inherit the same fan-out by construction.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 280, y: cy }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "credit", type: "wallet", x: cx + 240, y: cy - 110 }),
+      label:    makeAgent({ id: "label", name: "Label", role: "credit", type: "label", x: cx + 240, y: cy + 110 }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta wallet", role: "cap-table holder", type: "wallet", x: cx + 240, y: cy, hidden: true }),
+    };
+  },
+  steps: [
+    () => { /* step 0: idle intro */ },
+    (now) => {
+      addTx({ from: "sapta", to: "labelton", color: "accent", label: "registerMaster", dur: 1600 });
+      byId("labelton").flash = 1;
+    },
+    (now) => {
+      byId("labelton").note = "Master #1 · cap-table committed";
+      byId("labelton").glow = 0.8;
+      byId("saptaHold").hidden = false;
+      byId("saptaHold").appear = 0;
+      // Fan-out: Labelton mints to the three holders
+      setTimeout(() => addTx({ from: "labelton", to: "saptaHold", color: "accent", label: "6000 units", dur: 1100, curve: 30 }), 80);
+      setTimeout(() => addTx({ from: "labelton", to: "producer", color: "accent", label: "2000 units", dur: 1100, curve: -30 }), 260);
+      setTimeout(() => addTx({ from: "labelton", to: "label", color: "accent", label: "2000 units", dur: 1100, curve: 30 }), 440);
+    },
+    (now) => {
+      byId("saptaHold").shares = "6000";
+      byId("producer").shares = "2000";
+      byId("label").shares = "2000";
+      byId("saptaHold").glow = 0.6;
+      byId("producer").glow = 0.6;
+      byId("label").glow = 0.6;
+    },
+  ],
+});
+
+// ─── Scene 2: "Term sheet on the wire" ────────────────────────────────
+SCENES.push({
+  name: "Term sheet on the wire",
+  captions: [
+    "Sapta wants distribution. She drafts a 3-year exclusive deal: <code>$25K upfront</code>, <code>$50K MG</code>, <code>65% royalty</code>, worldwide.",
+    "Calls <code>createOffering</code> on <code>MuzixRightsOffering</code>. Status flips to <code>Draft</code> — visible to the artist only.",
+    "Calls <code>publishOffering</code>. Status flips to <code>Open</code>. The 30-day reply window starts ticking.",
+    "Three potential bidders watch the wire light up — Universal, Sony, and an indie distributor.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy }),
+      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "term-sheet registry", type: "contract", x: cx, y: cy, note: "" }),
+      universal: makeAgent({ id: "universal", name: "Universal", role: "major label", type: "bidder", x: cx + 280, y: cy - 130, hidden: true }),
+      sony:      makeAgent({ id: "sony", name: "Sony", role: "major label", type: "bidder", x: cx + 320, y: cy, hidden: true }),
+      indie:     makeAgent({ id: "indie", name: "Indie Dist.", role: "boutique distributor", type: "bidder", x: cx + 280, y: cy + 130, hidden: true }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering", dur: 1500 });
+      setTimeout(() => byId("offering").note = "Status: Draft", 1100);
+      byId("offering").flash = 1;
+    },
+    (now) => {
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "publishOffering", dur: 1300, curve: -40 });
+      setTimeout(() => byId("offering").note = "Status: Open · 30d window", 1000);
+      byId("offering").glow = 0.7;
+    },
+    (now) => {
+      byId("universal").hidden = false; byId("universal").appear = 0;
+      byId("sony").hidden = false;      byId("sony").appear = 0;
+      byId("indie").hidden = false;     byId("indie").appear = 0;
+    },
+  ],
+});
+
+// ─── Scene 3: "Counters in the room" ──────────────────────────────────
+SCENES.push({
+  name: "Counters in the room",
+  captions: [
+    "Three counters land in roughly the same hour. Each bidder posts a <code>5,000 MUSD</code> bond as earnest — escrowed in the contract until the offering closes.",
+    "Universal counters with <code>$30K upfront / 60% royalty</code> — higher upfront, lower artist share.",
+    "Sony calls <code>acceptBaseTerms</code> — taking Sapta's exact published numbers, no haggling.",
+    "Indie counters with <code>$20K upfront / 70% royalty</code> — lower upfront, higher artist share. All three counters now pending.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "Open · escrows bonds", type: "contract", x: cx, y: cy, balance: 0 }),
+      universal: makeAgent({ id: "universal", name: "Universal", role: "$30K / 60% royalty", type: "bidder", x: cx - 320, y: cy - 130 }),
+      sony:      makeAgent({ id: "sony", name: "Sony", role: "base terms", type: "bidder", x: cx - 360, y: cy }),
+      indie:     makeAgent({ id: "indie", name: "Indie Dist.", role: "$20K / 70% royalty", type: "bidder", x: cx - 320, y: cy + 130 }),
+      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "watching", type: "artist", x: cx + 320, y: cy }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "universal", to: "offering", color: "warn", label: "submitCounter · 5k MUSD bond", dur: 1500, curve: 30 });
+      byId("universal").flash = 1;
+      setTimeout(() => { byId("offering").balance = 5000; byId("offering").flash = 1; }, 1300);
+    },
+    (now) => {
+      addTx({ from: "sony", to: "offering", color: "warn", label: "acceptBaseTerms · 5k MUSD bond", dur: 1500 });
+      byId("sony").flash = 1;
+      setTimeout(() => { byId("offering").balance = 10000; byId("offering").flash = 1; }, 1300);
+    },
+    (now) => {
+      addTx({ from: "indie", to: "offering", color: "warn", label: "submitCounter · 5k MUSD bond", dur: 1500, curve: -30 });
+      byId("indie").flash = 1;
+      setTimeout(() => {
+        byId("offering").balance = 15000;
+        byId("offering").flash = 1;
+        byId("offering").note = "3 counters · 15k MUSD escrow";
+      }, 1300);
+    },
+  ],
+});
+
+// ─── Scene 4: "Sapta picks" ───────────────────────────────────────────
+SCENES.push({
+  name: "Sapta picks",
+  captions: [
+    "Sapta reviews the three counters off-chain — economics, brand fit, distribution reach. She picks Sony's base-terms offer.",
+    "Calls <code>acceptCounter(sonyId)</code>. Offering flips to <code>Accepted</code>. Sony's bond returns — the bond was earnest, not payment.",
+    "Universal calls <code>withdrawCounter</code>. Bond refunds, no fault. The status stays Pending until each loser self-withdraws.",
+    "Indie does the same. Capital out. <code>acceptedCounterId</code> is the canonical on-chain commitment — downstream contracts read from it.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx + 320, y: cy }),
+      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "3 counters pending", type: "contract", x: cx, y: cy, balance: 15000 }),
+      universal: makeAgent({ id: "universal", name: "Universal", role: "$30K / 60%", type: "bidder", x: cx - 320, y: cy - 130 }),
+      sony:      makeAgent({ id: "sony", name: "Sony", role: "base terms", type: "bidder", x: cx - 360, y: cy }),
+      indie:     makeAgent({ id: "indie", name: "Indie Dist.", role: "$20K / 70%", type: "bidder", x: cx - 320, y: cy + 130 }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      // Sapta points at Sony — visual highlight
+      byId("sony").glow = 1;
+      byId("sapta").flash = 1;
+      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter(sony)", dur: 1600 });
+      setTimeout(() => {
+        byId("offering").note = "Status: Accepted";
+        byId("offering").flash = 1;
+        // Refund Sony's bond
+        addTx({ from: "offering", to: "sony", color: "ok", label: "bond → 5k MUSD", dur: 1200 });
+        byId("offering").balance = 10000;
+      }, 1500);
+    },
+    (now) => {
+      addTx({ from: "universal", to: "offering", color: "muted", label: "withdrawCounter", dur: 1100, curve: 30 });
+      setTimeout(() => {
+        addTx({ from: "offering", to: "universal", color: "ok", label: "bond → 5k MUSD", dur: 1100, curve: -30 });
+        byId("offering").balance = 5000;
+        byId("universal").glow = 0.2;
+      }, 900);
+    },
+    (now) => {
+      addTx({ from: "indie", to: "offering", color: "muted", label: "withdrawCounter", dur: 1100, curve: -30 });
+      setTimeout(() => {
+        addTx({ from: "offering", to: "indie", color: "ok", label: "bond → 5k MUSD", dur: 1100, curve: 30 });
+        byId("offering").balance = 0;
+        byId("offering").note = "Closed · acceptedCounterId = sony";
+        byId("indie").glow = 0.2;
+      }, 900);
+    },
+  ],
+});
+
+// ─── Scene 5: "The numbers roll in" ───────────────────────────────────
+SCENES.push({
+  name: "The numbers roll in",
+  captions: [
+    "A streaming period closes. Three Oracle pushers query DSP APIs and submit verified revenue to <code>MuzixStreamingOracle</code>.",
+    "Spotify: <code>$14,800</code>, confidence <code>9500 bps</code> (well over the 7500 floor).",
+    "Apple Music: <code>$6,400</code>, confidence <code>9200</code>. YouTube Music: <code>$3,200</code>, confidence <code>8800</code>.",
+    "Oracle updates the latest pointer. Total for the period: <code>$24,400</code> against Sapta's master. <code>isDataFresh</code> returns true.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      spotify: makeAgent({ id: "spotify", name: "Spotify", role: "DSP pusher", type: "dsp", x: cx - 300, y: cy - 130 }),
+      apple:   makeAgent({ id: "apple", name: "Apple Music", role: "DSP pusher", type: "dsp", x: cx - 360, y: cy }),
+      youtube: makeAgent({ id: "youtube", name: "YouTube Music", role: "DSP pusher", type: "dsp", x: cx - 300, y: cy + 130 }),
+      oracle:  makeAgent({ id: "oracle", name: "Streaming Oracle", role: "verified revenue feed", type: "contract", x: cx, y: cy, note: "" }),
+      master:  makeAgent({ id: "master", name: "Sapta master", role: "catalog id", type: "wallet", x: cx + 320, y: cy }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "spotify", to: "oracle", color: "dsp", label: "$14.8k · 9500 bps", dur: 1400, curve: 20 });
+      byId("spotify").flash = 1;
+      setTimeout(() => { byId("oracle").note = "+ Spotify"; byId("oracle").flash = 1; }, 1200);
+    },
+    (now) => {
+      addTx({ from: "apple", to: "oracle", color: "dsp", label: "$6.4k · 9200 bps", dur: 1400 });
+      byId("apple").flash = 1;
+      setTimeout(() => { byId("oracle").note = "+ Apple"; byId("oracle").flash = 1; }, 1200);
+      setTimeout(() => {
+        addTx({ from: "youtube", to: "oracle", color: "dsp", label: "$3.2k · 8800 bps", dur: 1400, curve: -20 });
+        byId("youtube").flash = 1;
+      }, 700);
+    },
+    (now) => {
+      byId("oracle").note = "Latest: $24.4k · fresh";
+      byId("oracle").glow = 1;
+      byId("master").glow = 0.6;
+      byId("master").balance = 24400;
+    },
+  ],
+});
+
+// ─── Scene 6: "Mixdown pays out" ──────────────────────────────────────
+SCENES.push({
+  name: "Mixdown pays out",
+  captions: [
+    "Sony (the licensee from scene 4) routes the $24.4k stream revenue into <code>MUSD</code> against Sapta's master id.",
+    "MUSD reads <code>Labelton.capTableOf(masterId)</code>. The cap-table hasn't moved since registration — 60 / 20 / 20.",
+    "MUSD fans the payout: Sapta gets <code>$14,640</code>, Producer <code>$4,880</code>, Label <code>$4,880</code>. All atomic, on-chain.",
+    "The closed loop runs. Negotiation → registration → revenue → settlement, every step on-chain. Catalog has paid out for the first period.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sony:     makeAgent({ id: "sony", name: "Sony", role: "licensee", type: "bidder", x: cx - 320, y: cy }),
+      musd:     makeAgent({ id: "musd", name: "MUSD", role: "settlement stablecoin", type: "contract", x: cx, y: cy, note: "" }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "cap-table source", type: "contract", x: cx, y: cy - 150, r: 26 }),
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "60%", type: "artist", x: cx + 280, y: cy - 130, balance: 0 }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "20%", type: "wallet", x: cx + 320, y: cy, balance: 0 }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 280, y: cy + 130, balance: 0 }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sony", to: "musd", color: "ok", label: "$24.4k revenue", dur: 1500 });
+      byId("sony").flash = 1;
+      setTimeout(() => { byId("musd").note = "received $24.4k"; byId("musd").flash = 1; }, 1300);
+    },
+    (now) => {
+      addTx({ from: "musd", to: "labelton", color: "signal", label: "capTableOf(masterId)", dur: 1100 });
+      byId("labelton").flash = 1;
+      setTimeout(() => addTx({ from: "labelton", to: "musd", color: "signal", label: "[60/20/20]", dur: 1100, curve: 20 }), 1100);
+    },
+    (now) => {
+      setTimeout(() => { addTx({ from: "musd", to: "sapta", color: "ok", label: "$14,640", dur: 1300, curve: 30 }); byId("sapta").balance = 14640; }, 100);
+      setTimeout(() => { addTx({ from: "musd", to: "producer", color: "ok", label: "$4,880", dur: 1300 }); byId("producer").balance = 4880; }, 350);
+      setTimeout(() => { addTx({ from: "musd", to: "label", color: "ok", label: "$4,880", dur: 1300, curve: -30 }); byId("label").balance = 4880; }, 600);
+      setTimeout(() => {
+        byId("musd").note = "fanned · 0 remaining";
+        byId("sapta").glow = 0.8;
+        byId("producer").glow = 0.8;
+        byId("label").glow = 0.8;
+      }, 1900);
+    },
+  ],
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Engine
+// ──────────────────────────────────────────────────────────────────────
+
+function loadScene(i) {
+  currentScene = ((i % SCENES.length) + SCENES.length) % SCENES.length;
+  currentStep = 0;
+  txs.length = 0;
+  txIdCounter = 0;
+  SCENES[currentScene].setup();
+  // step 0 is the intro state (no animation) — run it
+  needsStepInit = true;
+  stepClock = 0;
+  updateChrome();
+}
+
+function runStep(idx) {
+  const scn = SCENES[currentScene];
+  if (idx < 0 || idx >= scn.steps.length) return;
+  // Decay glows on existing agents at each step so prior emphasis fades
+  for (const a of Object.values(agents)) {
+    a.flash = a.flash * 0.3;
+    a.glow = a.glow * 0.6;
+  }
+  scn.steps[idx](performance.now());
+}
+
+function advanceStep() {
+  const scn = SCENES[currentScene];
+  if (currentStep < scn.steps.length - 1) {
+    currentStep++;
+    runStep(currentStep);
+  } else {
+    // End of scene — loop to next scene
+    loadScene(currentScene + 1);
+  }
+  updateChrome();
+}
+
+function restartScene() {
+  loadScene(currentScene);
+}
+
+function gotoScene(i) {
+  loadScene(i);
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Tick & draw
+// ──────────────────────────────────────────────────────────────────────
+
+function tick(dt) {
+  // Initialize step 0 once at scene load
+  if (needsStepInit) {
+    runStep(0);
+    needsStepInit = false;
+  }
+
+  if (playing) {
+    stepClock += dt;
+    if (stepClock >= STEP_INTERVAL) {
+      stepClock = 0;
+      advanceStep();
+    }
+  }
+
+  // Decay flash & glow on agents
+  for (const a of Object.values(agents)) {
+    a.flash = Math.max(0, a.flash - dt * 0.0015);
+    a.glow = Math.max(0, a.glow * (1 - dt * 0.00025));
+    if (!a.hidden && a.appear < 1) a.appear = Math.min(1, a.appear + dt * 0.005);
+  }
+}
+
+function draw() {
+  const C = COLORS();
+
+  // Clear with slight ghost trail for movement
+  ctx.fillStyle = "rgba(7, 6, 5, 0.85)";
+  ctx.fillRect(0, 0, W, H);
+
+  // Scene title (subtle, top-left)
+  ctx.save();
+  ctx.fillStyle = withAlpha(C.muted2, 0.6);
+  ctx.font = "11px " + cssVar("--mono");
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("// scene " + (currentScene + 1) + " of " + SCENES.length, 24, 18);
+  ctx.restore();
+
+  // Active transactions
+  const now = performance.now();
+  for (let i = txs.length - 1; i >= 0; i--) {
+    const alive = drawTx(txs[i], now);
+    if (!alive) txs.splice(i, 1);
+  }
+
+  // Agents on top
+  for (const a of Object.values(agents)) {
+    drawAgent(a);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Chrome / DOM updates
+// ──────────────────────────────────────────────────────────────────────
+
+const sceneBar = document.getElementById("sceneBar");
+function buildSceneBar() {
+  sceneBar.innerHTML = "";
+  SCENES.forEach((scn, i) => {
+    const b = document.createElement("button");
+    b.innerHTML = `<span class="num">${(i + 1).toString().padStart(2, "0")}</span> ${scn.name}`;
+    b.onclick = () => gotoScene(i);
+    b.dataset.idx = i;
+    sceneBar.appendChild(b);
+  });
+  const ph = document.createElement("span");
+  ph.className = "placeholder";
+  ph.innerHTML = `+ add your scene <a href="https://github.com/kcolbchain/muzix/blob/main/web/public/mixdown.html" target="_blank">→</a>`;
+  sceneBar.appendChild(ph);
+}
+
+const sceneName = document.getElementById("sceneName");
+const sceneText = document.getElementById("sceneText");
+const stepLabel = document.getElementById("stepLabel");
+
+function updateChrome() {
+  // Scene-bar active state
+  Array.from(sceneBar.querySelectorAll("button")).forEach((b, i) => {
+    b.classList.toggle("active", i === currentScene);
+  });
+
+  const scn = SCENES[currentScene];
+  sceneName.textContent = scn.name;
+  const caption = scn.captions[currentStep] || scn.captions[scn.captions.length - 1] || "";
+  sceneText.innerHTML = caption;
+  stepLabel.innerHTML = `<span class="accent">scene ${currentScene + 1}/${SCENES.length}</span> · step ${currentStep + 1}/${scn.captions.length}`;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Controls
+// ──────────────────────────────────────────────────────────────────────
+
+const btnPlay = document.getElementById("btnPlay");
+const btnStep = document.getElementById("btnStep");
+const btnRestart = document.getElementById("btnRestart");
+const btnPrev = document.getElementById("btnPrev");
+const btnNext = document.getElementById("btnNext");
+
+function setPlaying(p) {
+  playing = p;
+  btnPlay.textContent = playing ? "⏸" : "▶";
+  btnPlay.classList.toggle("active", playing);
+}
+
+btnPlay.onclick = () => setPlaying(!playing);
+btnStep.onclick = () => { advanceStep(); updateChrome(); };
+btnRestart.onclick = () => restartScene();
+btnPrev.onclick = () => gotoScene(currentScene - 1);
+btnNext.onclick = () => gotoScene(currentScene + 1);
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+  else if (e.code === "KeyN") { advanceStep(); updateChrome(); }
+  else if (e.code === "KeyR") { restartScene(); }
+  else if (e.code === "ArrowLeft") { gotoScene(currentScene - 1); }
+  else if (e.code === "ArrowRight") { gotoScene(currentScene + 1); }
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Tooltip on hover
+// ──────────────────────────────────────────────────────────────────────
+
+const tooltip = document.getElementById("tooltip");
+const ttName = document.getElementById("tooltipName");
+const ttRole = document.getElementById("tooltipRole");
+const ttBal = document.getElementById("tooltipBal");
+
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  let hit = null;
+  for (const a of Object.values(agents)) {
+    if (a.hidden || a.appear < 0.3) continue;
+    const dx = x - a.x, dy = y - a.y;
+    if (dx * dx + dy * dy <= (a.r + 6) * (a.r + 6)) { hit = a; break; }
+  }
+  if (hit) {
+    ttName.textContent = hit.name;
+    ttRole.textContent = hit.role;
+    if (hit.balance !== null && hit.balance !== undefined) {
+      ttBal.style.display = "block";
+      ttBal.innerHTML = `<span class="musd">$${formatMoney(hit.balance)} MUSD</span>`;
+    } else if (hit.shares !== null && hit.shares !== undefined) {
+      ttBal.style.display = "block";
+      ttBal.innerHTML = `<span class="shares">${hit.shares} shares · ERC-1155</span>`;
+    } else {
+      ttBal.style.display = "none";
+    }
+    tooltip.style.left = e.clientX + "px";
+    tooltip.style.top = e.clientY + "px";
+    tooltip.classList.add("visible");
+  } else {
+    tooltip.classList.remove("visible");
+  }
+});
+canvas.addEventListener("mouseleave", () => tooltip.classList.remove("visible"));
+
+// ──────────────────────────────────────────────────────────────────────
+// Bootstrap
+// ──────────────────────────────────────────────────────────────────────
+
+buildSceneBar();
+resize();
+loadScene(0);
+
+let lastT = performance.now();
+function loop(t) {
+  const dt = t - lastT;
+  lastT = t;
+  tick(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
