@@ -347,6 +347,164 @@ export const MuzixAIProvenanceAbi = [
  * Production deployments will point at the on-chain oracle contract once a
  * reference node is wired up (see oracle/README.md).
  */
+export const MuzixRightsOfferingAbi = [
+  {
+    type: 'function',
+    name: 'getOffering',
+    stateMutability: 'view',
+    inputs: [{ name: 'offeringId', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        components: [
+          { name: 'artist', type: 'address' },
+          { name: 'subjectHash', type: 'bytes32' },
+          { name: 'subjectURI', type: 'string' },
+          {
+            name: 'rights',
+            type: 'tuple',
+            components: [
+              { name: 'rightsType', type: 'uint8' },
+              { name: 'exclusive', type: 'bool' },
+              { name: 'territoryHash', type: 'bytes32' },
+              { name: 'termSeconds', type: 'uint64' },
+            ],
+          },
+          {
+            name: 'baseTerms',
+            type: 'tuple',
+            components: [
+              { name: 'upfrontUsd', type: 'uint256' },
+              { name: 'minGuaranteeUsd', type: 'uint256' },
+              { name: 'artistRoyaltyBps', type: 'uint16' },
+              { name: 'advanceRecoupCapUsd', type: 'uint256' },
+            ],
+          },
+          { name: 'settlementToken', type: 'address' },
+          { name: 'minBondUsd', type: 'uint256' },
+          { name: 'repliesDueBy', type: 'uint64' },
+          { name: 'createdAt', type: 'uint64' },
+          { name: 'status', type: 'uint8' },
+          { name: 'acceptedCounterId', type: 'uint256' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'getCounter',
+    stateMutability: 'view',
+    inputs: [{ name: 'counterId', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        components: [
+          { name: 'offeringId', type: 'uint256' },
+          { name: 'bidder', type: 'address' },
+          {
+            name: 'terms',
+            type: 'tuple',
+            components: [
+              { name: 'upfrontUsd', type: 'uint256' },
+              { name: 'minGuaranteeUsd', type: 'uint256' },
+              { name: 'artistRoyaltyBps', type: 'uint16' },
+              { name: 'advanceRecoupCapUsd', type: 'uint256' },
+            ],
+          },
+          { name: 'memoURI', type: 'string' },
+          { name: 'bondAmount', type: 'uint256' },
+          { name: 'status', type: 'uint8' },
+          { name: 'submittedAt', type: 'uint64' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'counterIdsFor',
+    stateMutability: 'view',
+    inputs: [{ name: 'offeringId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'uint256[]' }],
+  },
+  {
+    type: 'function',
+    name: 'counterCountFor',
+    stateMutability: 'view',
+    inputs: [{ name: 'offeringId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'createOffering',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'subjectHash', type: 'bytes32' },
+      { name: 'subjectURI', type: 'string' },
+      {
+        name: 'rights',
+        type: 'tuple',
+        components: [
+          { name: 'rightsType', type: 'uint8' },
+          { name: 'exclusive', type: 'bool' },
+          { name: 'territoryHash', type: 'bytes32' },
+          { name: 'termSeconds', type: 'uint64' },
+        ],
+      },
+      {
+        name: 'baseTerms',
+        type: 'tuple',
+        components: [
+          { name: 'upfrontUsd', type: 'uint256' },
+          { name: 'minGuaranteeUsd', type: 'uint256' },
+          { name: 'artistRoyaltyBps', type: 'uint16' },
+          { name: 'advanceRecoupCapUsd', type: 'uint256' },
+        ],
+      },
+      { name: 'settlementToken', type: 'address' },
+      { name: 'minBondUsd', type: 'uint256' },
+      { name: 'repliesDueBy', type: 'uint64' },
+    ],
+    outputs: [{ name: 'offeringId', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'publishOffering',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'offeringId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'submitCounter',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'offeringId', type: 'uint256' },
+      {
+        name: 'terms',
+        type: 'tuple',
+        components: [
+          { name: 'upfrontUsd', type: 'uint256' },
+          { name: 'minGuaranteeUsd', type: 'uint256' },
+          { name: 'artistRoyaltyBps', type: 'uint16' },
+          { name: 'advanceRecoupCapUsd', type: 'uint256' },
+        ],
+      },
+      { name: 'memoURI', type: 'string' },
+      { name: 'bondAmount', type: 'uint256' },
+    ],
+    outputs: [{ name: 'counterId', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'acceptCounter',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'counterId', type: 'uint256' }],
+    outputs: [],
+  },
+] as const;
+
 export const StreamingRevenueOracleAbi = [
   {
     type: 'function',

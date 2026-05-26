@@ -4,6 +4,7 @@ import { CatalogModule } from './catalog.js';
 import { MusdModule } from './musd.js';
 import { OracleModule } from './oracle.js';
 import { ProvenanceModule } from './provenance.js';
+import { RightsModule } from './rights.js';
 import type { MuzixContracts } from './types.js';
 
 export interface CreateMuzixClientOptions {
@@ -55,6 +56,7 @@ export interface MuzixClient {
   musd: MusdModule;
   oracle: OracleModule;
   provenance: ProvenanceModule;
+  rights: RightsModule;
 }
 
 export function createMuzixClient(opts: CreateMuzixClientOptions): MuzixClient {
@@ -71,5 +73,6 @@ export function createMuzixClient(opts: CreateMuzixClientOptions): MuzixClient {
       publicClient,
       walletClient,
     ),
+    rights: new RightsModule(contracts.rights, publicClient, walletClient),
   };
 }
