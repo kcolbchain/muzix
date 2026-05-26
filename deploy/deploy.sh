@@ -34,14 +34,19 @@ npm run build > /dev/null
 # Next.js standalone output does NOT copy these by design — the docs
 # explicitly tell you to wire them in for production. See:
 # https://nextjs.org/docs/app/api-reference/config/next-config-js/output
+# Both destinations are RELATIVE TO THE STANDALONE ROOT — NOT under web/.
+# server.js does process.chdir(__dirname) where __dirname is the standalone
+# root, then looks for `./.next/static` and `./public`. Writing them under
+# `standalone/web/.next/static` (a mirror of the source layout) is wrong:
+# the homepage will render but every /_next/static/* request will 404,
+# silently breaking all styling.
 echo "==> wiring public/ and .next/static into standalone..."
 rm -rf "$STANDALONE/public"
 mkdir -p "$STANDALONE/public"
 cp -r "$REPO/web/public/." "$STANDALONE/public/"
 
-rm -rf "$STANDALONE/web/.next/static"
-mkdir -p "$STANDALONE/web/.next"
-cp -r "$REPO/web/.next/static" "$STANDALONE/web/.next/static"
+rm -rf "$STANDALONE/.next/static"
+cp -r "$REPO/web/.next/static" "$STANDALONE/.next/static"
 
 echo "==> systemctl restart ${SERVICE}..."
 sudo systemctl restart "$SERVICE"
