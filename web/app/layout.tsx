@@ -46,16 +46,30 @@ function Header() {
             / layer 0 for music
           </span>
         </Link>
-        <nav className="flex items-center gap-6 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-300">
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-300">
           <Link href="/catalog" className="hover:text-muzix-accent">
             Catalog
           </Link>
           <Link href="/contracts" className="hover:text-muzix-accent">
             Contracts
           </Link>
+          <a href="/mixdown.html" className="hover:text-muzix-accent">
+            Mixdown
+          </a>
+          <a href="/labelton.html" className="hover:text-muzix-accent">
+            Labelton
+          </a>
           <Link href="/about" className="hover:text-muzix-accent">
             About
           </Link>
+          <a
+            href="https://docs.kcolbchain.com/muzix/"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-muzix-accent"
+          >
+            Docs ↗
+          </a>
           <a
             href="https://github.com/kcolbchain/muzix"
             target="_blank"
