@@ -162,3 +162,21 @@ MIT
 ---
 
 *Muzix is built by [kcolbchain](https://kcolbchain.com) (est. 2015). Founded by [Abhishek Krishna](https://abhishekkrishna.com).*
+
+
+## Naming Conventions
+
+This repository follows Muzix DAO governance naming standards:
+
+| Term | Convention | Notes |
+|------|-----------|-------|
+| Protocol | **LABELTON** | Rights tokenization protocol (all caps stylization) |
+| DAO | **Muzix DAO** | Decentralized music rights organization |
+| Chain | **CR8 chain** | Settlement and rights registration layer |
+| Token | **$MUZ** | Muzix DAO governance token |
+| Contract | **Labelton** | Smart contract suite (PascalCase) |
+
+### Repository Alignment
+- Repo name: `muzix` tracks core DAO protocol development
+- Product: `LABELTON` is the rights tokenization product from Muzix DAO
+- Chain: `CR8 chain` is the settlement layer for LABELTON transactions
