@@ -26,8 +26,8 @@ LABELTON is the **rights-tokenization product** of the Muzix protocol. This docu
                                │ runs on
                                ▼
 ┌────────────────────────────────────────────────────────────────┐
-│           CR8 chain (own L1  OR  LUX subnet — open)             │
-│   OP Stack settlement · MUSD or CR8-native gas (TBD)            │
+│  Create Protocol on Arbitrum · MUSD + CR8-USD · Switchboard    │
+│            payment rail · Lux primitives below                 │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,6 +66,8 @@ ERC-1155 balance per `(holder, variantId)` equals the holder's basis-point share
 6. **ERC-1155 supply = share unit.** 10000 units per variant matches basis-point granularity; no parallel cap-table mapping needed.
 
 ## How it integrates with existing muzix contracts
+
+*(Note: Per the 2026-05-24 architecture decision, Create Protocol on Arbitrum is the core L1 settlement layer. MUSD and CR8-USD live on Arbitrum, Switchboard handles the payment rail, and Lux primitives operate below. This stack-layering decision is final and should not be re-litigated by downstream integrations.)*
 
 ### MuzixRightsOffering (PR #37 — open)
 
@@ -106,7 +108,7 @@ Note: AIProvenance currently checks `IERC721Minimal(catalog).ownerOf(tokenId)`. 
 ## What this PR does NOT do
 
 - **No MUSD changes** — royalty distribution against LABELTON cap-tables is a follow-up.
-- **No CR8 chain decision** — LABELTON deploys identically on either an own-L1 CR8 or a LUX subnet.
+- **No CR8 chain decision** — (Resolved: Deploys to Arbitrum).
 - **No verifier signature enforcement** — verifier addresses are storable on-chain but signatures are not yet checked at registration. Off-chain dossier verification is a follow-up.
 - **No migration of existing MuzixCatalog tokens** — separate concern.
 - **No DAO governance contract** — Muzix DAO governance lives elsewhere (Aragon / Tally / custom — TBD); LABELTON's `onlyOwner` config endpoints will be owned by it.
@@ -117,7 +119,7 @@ Note: AIProvenance currently checks `IERC721Minimal(catalog).ownerOf(tokenId)`. 
 
 1. **Variant cap-table inheritance vs override.** Real-world remix royalties typically have different splits. v0 inherits. Override behind a governance vote? Per-variant explicit cap-table? See companion issue.
 2. **Verifier enforcement.** Single oracle? Multi-sig? Per-domain (separate MIR, legal, financial)? v0 stores addresses but doesn't enforce signatures.
-3. **MUSD vs CR8-native as settlement asset.** v0 leaves MUSD intact.
+3. **Settlement asset & payment rails.** (Closed: MUSD on Arbitrum is the settlement asset). *New open question:* How exactly does the Switchboard integration surface hook into Labelton's cap-table during atomic agent escrow settlement?
 4. **`mintVariant` permission.** v0 allows any cap-table member. Should it be only the registrant, or a designated minter role?
 5. **Cap-table mutability.** Real-world rights transfers happen. v0 says immutable; transfers are via ERC-1155. Should the DAO have a governance-gated mutation path for legal events (sales, inheritance, label assignments)?
 
