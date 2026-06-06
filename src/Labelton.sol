@@ -158,6 +158,7 @@ contract Labelton is ERC1155, ReentrancyGuard, Ownable {
     error IswcAlreadyRegistered(string iswc);
     error VariantIsrcAlreadyRegistered(string isrc);
     error MasterDoesNotExist(uint256 masterId);
+    error VariantDoesNotExist(uint256 variantId);
     error VariantKindNotAllowed(VariantKind kind);
     error NotMasterMember(uint256 masterId, address caller);
 
@@ -348,7 +349,7 @@ contract Labelton is ERC1155, ReentrancyGuard, Ownable {
         returns (CapTableEntry[] memory)
     {
         Variant storage v = variants[variantId];
-        if (!v.exists) revert MasterDoesNotExist(v.masterId);
+        if (!v.exists) revert VariantDoesNotExist(variantId);
         return _capTables[v.masterId];
     }
 
