@@ -16,10 +16,15 @@ pragma solidity ^0.8.20;
  *         dependency here; the aiModelTokens array is a free-form list of
  *         addresses so that future AI-asset standards can also be referenced.
  *
- *         Writes are gated by ERC-721 `ownerOf(tokenId)` on the target
- *         catalog contract — only the catalog token owner (which in
- *         MuzixCatalog is the royalty-split authority by construction) may
- *         set, replace, or clear a provenance record.
+ *         Writes are gated by token ownership on the target catalog contract.
+ *         The catalog may be either ERC-721 or ERC-1155 (e.g. LABELTON's
+ *         variant tokens), so the auth path is selected via ERC-165:
+ *           - if the catalog reports `supportsInterface(0xd9b67a26)` → ERC-1155,
+ *             any holder with `balanceOf(msg.sender, tokenId) > 0` is authorized
+ *             (matches LABELTON's "ERC-1155 balance IS the share" model);
+ *           - otherwise → ERC-721, only `ownerOf(tokenId) == msg.sender`.
+ *         Catalogs that do not implement ERC-165 fall through to the ERC-721
+ *         path.
  *
  *         Reads are public; the provenance is a view surface for UIs,
  *         downstream settlement contracts, and off-chain verifiers.
@@ -33,6 +38,14 @@ pragma solidity ^0.8.20;
 
 interface IERC721Minimal {
     function ownerOf(uint256 tokenId) external view returns (address);
+}
+
+interface IERC1155Minimal {
+    function balanceOf(address account, uint256 id) external view returns (uint256);
+}
+
+interface IERC165Minimal {
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
 contract MuzixAIProvenance {
@@ -201,10 +214,33 @@ contract MuzixAIProvenance {
     // Internals
     // ---------------------------------------------------------------------
 
+    /// @dev ERC-1155 interface id per EIP-1155 §"Specification". Hard-coded so
+    ///      a non-ERC-165 catalog that happens to expose `ownerOf` still
+    ///      resolves correctly via the ERC-721 fallback.
+    bytes4 internal constant _ERC1155_INTERFACE_ID = 0xd9b67a26;
+
     function _requireTokenOwner(address catalog, uint256 tokenId) internal view {
+        if (_isERC1155(catalog)) {
+            if (IERC1155Minimal(catalog).balanceOf(msg.sender, tokenId) == 0) {
+                revert NotTokenOwner(catalog, tokenId, msg.sender);
+            }
+            return;
+        }
         address owner = IERC721Minimal(catalog).ownerOf(tokenId);
         if (owner != msg.sender) {
             revert NotTokenOwner(catalog, tokenId, msg.sender);
+        }
+    }
+
+    /// @dev `supportsInterface` may revert (catalog isn't ERC-165 at all),
+    ///      return false (ERC-165 but not ERC-1155), or return true. Only the
+    ///      last case picks the ERC-1155 path; the other two fall through to
+    ///      ERC-721 so we stay backward-compatible with the legacy MuzixCatalog.
+    function _isERC1155(address catalog) internal view returns (bool) {
+        try IERC165Minimal(catalog).supportsInterface(_ERC1155_INTERFACE_ID) returns (bool ok) {
+            return ok;
+        } catch {
+            return false;
         }
     }
 }
