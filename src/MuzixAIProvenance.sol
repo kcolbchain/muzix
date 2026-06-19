@@ -41,7 +41,7 @@ interface IERC165 {
 }
 
 /// @dev ERC-1155 interface ID: 0xd9b67a26.
-bytes32 constant ERC1155_INTERFACE_ID = 0xd9b67a26;
+bytes4 constant ERC1155_INTERFACE_ID = 0xd9b67a26;
 
 contract MuzixAIProvenance {
     /// @notice Max count on bounded fields — keeps a pathological write from
