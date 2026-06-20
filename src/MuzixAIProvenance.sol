@@ -35,6 +35,14 @@ interface IERC721Minimal {
     function ownerOf(uint256 tokenId) external view returns (address);
 }
 
+/// @notice Minimal ERC-165 interface check for ERC-1155 support.
+interface IERC165 {
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+/// @dev ERC-1155 interface ID: 0xd9b67a26.
+bytes4 constant ERC1155_INTERFACE_ID = 0xd9b67a26;
+
 contract MuzixAIProvenance {
     /// @notice Max count on bounded fields — keeps a pathological write from
     ///         consuming an unreasonable amount of gas / storage. Chosen to
@@ -202,9 +210,27 @@ contract MuzixAIProvenance {
     // ---------------------------------------------------------------------
 
     function _requireTokenOwner(address catalog, uint256 tokenId) internal view {
+        // Try ERC-1155 path first (LABELTON variants use ERC-1155).
+        // Wrapped in try/catch so legacy catalogs without ERC-165
+        // fall through to the ERC-721 path — backward compatible.
+        try IERC165(catalog).supportsInterface(ERC1155_INTERFACE_ID) returns (bool is1155) {
+            if (is1155) {
+                uint256 balance = IERC1155Minimal(catalog).balanceOf(msg.sender, tokenId);
+                if (balance == 0) revert NotTokenOwner(catalog, tokenId, msg.sender);
+                return;
+            }
+        } catch {
+            // Catalog doesn't implement ERC-165; fall through.
+        }
+        // ERC-721 path (original behavior).
         address owner = IERC721Minimal(catalog).ownerOf(tokenId);
         if (owner != msg.sender) {
             revert NotTokenOwner(catalog, tokenId, msg.sender);
         }
     }
+}
+
+/// @notice Minimal ERC-1155 interface for balance checks.
+interface IERC1155Minimal {
+    function balanceOf(address account, uint256 id) external view returns (uint256);
 }

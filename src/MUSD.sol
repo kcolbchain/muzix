@@ -58,6 +58,7 @@ contract MUSD is ERC20, ERC20Permit, Ownable, ReentrancyGuard {
     function _distribute(uint256 tokenId, uint256 amount) internal {
         (address[] memory recipients, uint16[] memory shares) = catalog.royaltySplits(tokenId);
         require(recipients.length > 0, "No splits defined");
+        require(recipients.length == shares.length, "Split length mismatch");
 
         _transfer(msg.sender, address(this), amount);
 

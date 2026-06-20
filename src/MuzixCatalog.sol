@@ -49,11 +49,24 @@ contract MuzixCatalog is ERC721URIStorage, ERC2981, Ownable, ReentrancyGuard {
         require(recipients.length == shares.length, "Mismatched arrays");
         
         uint16 total;
-        for(uint i = 0; i < shares.length; i++) total += shares[i];
+        for (uint256 i = 0; i < shares.length; i++) total += shares[i];
         require(total == 10000, "Total must be 100%");
 
         _royaltySplits[tokenId] = Split(recipients, shares);
-        _setTokenRoyalty(tokenId, address(this), 1000); // 10% padrão para o pool
+        // ERC2981 royalty goes to the split recipient with the largest share
+        // (the contract itself does not take a cut — revenue flows through
+        // MUSD batch payouts per the protocol design).
+        if (recipients.length > 0) {
+            uint16 maxShare = 0;
+            address maxRecipient = recipients[0];
+            for (uint256 i = 0; i < recipients.length; i++) {
+                if (shares[i] > maxShare) {
+                    maxShare = shares[i];
+                    maxRecipient = recipients[i];
+                }
+            }
+            _setTokenRoyalty(tokenId, maxRecipient, maxShare);
+        }
     }
 
     // Recebimento de Receita
