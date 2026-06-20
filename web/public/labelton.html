@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mixdown — the Muzix protocol lab</title>
-<meta name="description" content="Interactive lab of the Muzix protocol: rights tokenization (Labelton), term-sheet marketplace (MuzixRightsOffering), streaming-revenue oracle (MuzixStreamingOracle), and MUSD royalty settlement. The closed-loop demo." />
-<meta property="og:title" content="Mixdown — the Muzix protocol lab" />
-<meta property="og:description" content="Watch a Sapta album go from rights registration → term-sheet negotiation → streaming revenue → MUSD payout. The Muzix closed loop, in 6 scenes." />
+<title>Labelton — the rights-primitive lab</title>
+<meta name="description" content="Interactive lab of the Labelton rights primitive: ERC-1155 master + variant tokenization, immutable cap-tables, DAO-gated variant kinds, and the membership-snapshot quirk. Eight scenes." />
+<meta property="og:title" content="Labelton — the rights-primitive lab" />
+<meta property="og:description" content="Zoom into the Muzix rights primitive: registerMaster, mintVariant, cap-table snapshot, ISRC uniqueness, DAO pause. Eight scenes." />
 <style>
   :root {
     --bg: #070605;
@@ -27,6 +27,7 @@
     --dsp: #c084fc;
     --wallet: #f5f1e8;
     --label: #fda4af;
+    --dao: #a78bfa;          /* DAO purple */
 
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -237,11 +238,12 @@
 <body>
   <header>
     <div class="title">
-      <span class="play-icon">▶</span><span>mixdown</span>
-      <span class="tag">— the muzix protocol lab</span>
+      <span class="play-icon">▶</span><span>labelton</span>
+      <span class="tag">— the rights-primitive lab</span>
     </div>
-    <div class="crumbs">muzix · closed-loop demo · v0</div>
+    <div class="crumbs">muzix · labelton zoom-in · v0</div>
     <div class="links">
+      <a href="./mixdown.html">← mixdown</a>
       <a href="/">home</a>
       <a href="/contracts">builder</a>
       <a href="https://github.com/kcolbchain/muzix" target="_blank" rel="noreferrer noopener">github</a>
@@ -265,7 +267,7 @@
     <button id="btnPlay" class="play active" title="Play / pause (space)" aria-label="Play/pause">⏸</button>
     <button id="btnStep" title="Step forward (n)" aria-label="Step">⏭</button>
     <button id="btnNext" title="Next scene" aria-label="Next scene">⏭⏭</button>
-    <span class="label" id="stepLabel"><span class="accent">scene 1/6</span> · step 0</span>
+    <span class="label" id="stepLabel"><span class="accent">scene 1/8</span> · step 0</span>
   </div>
 
   <div class="tooltip glass" id="tooltip">
@@ -319,10 +321,16 @@ const COLORS = () => ({
   dsp: cssVar("--dsp"),
   wallet: cssVar("--wallet"),
   label: cssVar("--label"),
+  dao: cssVar("--dao"),
 });
 
 // ──────────────────────────────────────────────────────────────────────
 // Agent registry
+// ──────────────────────────────────────────────────────────────────────
+//
+// Labelton lab adds a `dao` type — purple shield — distinct from the
+// cyan contract hex so the DAO's governance role reads visually as
+// "operator" rather than "code."
 // ──────────────────────────────────────────────────────────────────────
 
 const AGENT_TYPES = {
@@ -332,6 +340,7 @@ const AGENT_TYPES = {
   label:    { color: "label",   shape: "circle", r: 24 },
   dsp:      { color: "dsp",     shape: "diamond",r: 26 },
   wallet:   { color: "wallet",  shape: "circle", r: 22 },
+  dao:      { color: "dao",     shape: "shield", r: 28 },
 };
 
 function makeAgent({ id, name, role, type = "wallet", x = 0, y = 0, r, color, shape, note = "", balance = null, shares = null, hidden = false }) {
@@ -393,6 +402,23 @@ function drawDiamond(x, y, r, fill, stroke, lw = 1.5) {
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
 }
 
+// Shield — used for the DAO agent. A rounded top with a pointed bottom.
+function drawShield(x, y, r, fill, stroke, lw = 1.5) {
+  const w = r * 1.5;
+  const h = r * 1.8;
+  ctx.beginPath();
+  ctx.moveTo(x - w / 2, y - h / 2 + 6);
+  ctx.quadraticCurveTo(x - w / 2, y - h / 2, x - w / 2 + 6, y - h / 2);
+  ctx.lineTo(x + w / 2 - 6, y - h / 2);
+  ctx.quadraticCurveTo(x + w / 2, y - h / 2, x + w / 2, y - h / 2 + 6);
+  ctx.lineTo(x + w / 2, y);
+  ctx.quadraticCurveTo(x + w / 2, y + h / 2 - 4, x, y + h / 2);
+  ctx.quadraticCurveTo(x - w / 2, y + h / 2 - 4, x - w / 2, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+
 function withAlpha(hex, alpha) {
   // hex is "#rrggbb" or "#rgb"
   let h = hex.replace("#", "");
@@ -430,6 +456,7 @@ function drawAgent(a) {
   if (a.shape === "hex") drawHex(a.x, a.y, a.r, fill, stroke, 2);
   else if (a.shape === "square") drawSquare(a.x, a.y, a.r, fill, stroke, 1.8);
   else if (a.shape === "diamond") drawDiamond(a.x, a.y, a.r, fill, stroke, 1.8);
+  else if (a.shape === "shield") drawShield(a.x, a.y, a.r, fill, stroke, 1.8);
   else drawCircle(a.x, a.y, a.r, fill, stroke, 1.8);
 
   // Name label
@@ -567,19 +594,25 @@ const STEP_INTERVAL = 1800; // ms between auto-steps
 let needsStepInit = true;
 
 // ──────────────────────────────────────────────────────────────────────
-// Scenes — each scene is { name, caption(step), setup(), steps:[fn(now)] }
+// Scenes — each scene is { name, captions[], setup(), steps:[fn(now)] }
+//
+// The Labelton lab is the zoom-in companion to Mixdown. Each scene
+// dramatises one mechanic of the rights primitive — the contract calls,
+// the invariants, the design quirks. Captions reference the actual
+// Solidity function names; agents stand in for cap-table holders and
+// the on-chain registry.
 // ──────────────────────────────────────────────────────────────────────
 
 const SCENES = [];
 
-// ─── Scene 1: "Drop the master" ───────────────────────────────────────
+// ─── Scene 1: "Master gets minted" ────────────────────────────────────
 SCENES.push({
-  name: "Drop the master",
+  name: "Master gets minted",
   captions: [
-    "Sapta walks into the studio with a finished album. The cap-table is decided: <code>Sapta 60%</code>, <code>Producer 20%</code>, <code>Label 20%</code>.",
-    "Sapta calls <code>Labelton.registerMaster</code>. ISRC, UPC, ISWC, MIR hash, legal-id hash and the cap-table commit on-chain — immutable from here.",
-    "The root variant mints. 10,000 ERC-1155 units fan across the cap-table in basis points. <code>Balance IS the share.</code>",
-    "Cap-table holders now hold their proportional share on-chain. Variants minted under this master inherit the same fan-out by construction.",
+    "Sapta walks in with a finished record. Her cap-table is decided: <code>Sapta 60% / Producer 20% / Label 20%</code> — 6000 + 2000 + 2000 basis points.",
+    "She calls <code>registerMaster(p, capTable)</code>. The shares sum to <code>10000 bps</code> exactly. ISRC, UPC, ISWC, MIR hash and the cap-table commit on-chain.",
+    "The root variant mints in the same transaction. <code>VARIANT_SUPPLY_BPS</code> = 10000 fans across the three holders — Sapta 6000, Producer 2000, Label 2000.",
+    "The cap-table is now frozen. <code>Balance IS the share.</code> No parallel mapping. ERC-1155 balances on variant #1 are the legal-weight rights record.",
   ],
   setup() {
     const cx = W / 2, cy = H / 2 - 20;
@@ -614,402 +647,334 @@ SCENES.push({
       byId("saptaHold").glow = 0.6;
       byId("producer").glow = 0.6;
       byId("label").glow = 0.6;
+      byId("labelton").note = "Variant #1 · root mint · 10000 fanned";
     },
   ],
 });
 
-// ─── Scene 2: "Term sheet on the wire" ────────────────────────────────
+// ─── Scene 2: "ISRC stays unique" ─────────────────────────────────────
 SCENES.push({
-  name: "Term sheet on the wire",
+  name: "ISRC stays unique",
   captions: [
-    "Sapta wants distribution. She drafts a 3-year exclusive deal: <code>$25K upfront</code>, <code>$50K MG</code>, <code>65% royalty</code>, worldwide.",
-    "Calls <code>createOffering</code> on <code>MuzixRightsOffering</code>. Status flips to <code>Draft</code> — visible to the artist only.",
-    "Calls <code>publishOffering</code>. Status flips to <code>Open</code>. The 30-day reply window starts ticking.",
-    "Three potential bidders watch the wire light up — Universal, Sony, and an indie distributor.",
+    "Sapta's master is on-chain. The mapping <code>masterByIsrcRoot[\"USS1Z2600001\"]</code> now points at master #1.",
+    "A second wallet — call them Imposter — tries <code>registerMaster</code> reusing the same <code>isrcRoot</code>. The guard fires.",
+    "The contract reverts with <code>IsrcRootAlreadyRegistered(\"USS1Z2600001\")</code>. The legal identifier stays a unique key — no duplicate masters per ISRC, ever.",
   ],
   setup() {
     const cx = W / 2, cy = H / 2 - 20;
     agents = {
-      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy }),
-      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "term-sheet registry", type: "contract", x: cx, y: cy, note: "" }),
-      universal: makeAgent({ id: "universal", name: "Universal", role: "major label", type: "bidder", x: cx + 280, y: cy - 130, hidden: true }),
-      sony:      makeAgent({ id: "sony", name: "Sony", role: "major label", type: "bidder", x: cx + 320, y: cy, hidden: true }),
-      indie:     makeAgent({ id: "indie", name: "Indie Dist.", role: "boutique distributor", type: "bidder", x: cx + 280, y: cy + 130, hidden: true }),
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "registrant of #1", type: "artist", x: cx - 320, y: cy - 110, note: "USS1Z2600001" }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "Master #1 · indexed" }),
+      imposter: makeAgent({ id: "imposter", name: "Imposter", role: "stranger wallet", type: "wallet", x: cx - 320, y: cy + 110 }),
     };
   },
   steps: [
-    () => { /* idle */ },
-    (now) => {
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering", dur: 1500 });
-      setTimeout(() => byId("offering").note = "Status: Draft", 1100);
-      byId("offering").flash = 1;
+    () => {
+      byId("sapta").glow = 0.4;
+      byId("labelton").glow = 0.4;
     },
     (now) => {
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "publishOffering", dur: 1300, curve: -40 });
-      setTimeout(() => byId("offering").note = "Status: Open · 30d window", 1000);
-      byId("offering").glow = 0.7;
+      addTx({ from: "imposter", to: "labelton", color: "warn", label: "registerMaster(USS1Z2600001)", dur: 1500 });
+      byId("imposter").flash = 1;
     },
     (now) => {
-      byId("universal").hidden = false; byId("universal").appear = 0;
-      byId("sony").hidden = false;      byId("sony").appear = 0;
-      byId("indie").hidden = false;     byId("indie").appear = 0;
-    },
-  ],
-});
-
-// ─── Scene 3: "Counters in the room" ──────────────────────────────────
-SCENES.push({
-  name: "Counters in the room",
-  captions: [
-    "Three counters land in roughly the same hour. Each bidder posts a <code>5,000 MUSD</code> bond as earnest — escrowed in the contract until the offering closes.",
-    "Universal counters with <code>$30K upfront / 60% royalty</code> — higher upfront, lower artist share.",
-    "Sony calls <code>acceptBaseTerms</code> — taking Sapta's exact published numbers, no haggling.",
-    "Indie counters with <code>$20K upfront / 70% royalty</code> — lower upfront, higher artist share. All three counters now pending.",
-  ],
-  setup() {
-    const cx = W / 2, cy = H / 2 - 20;
-    agents = {
-      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "Open · escrows bonds", type: "contract", x: cx, y: cy, balance: 0 }),
-      universal: makeAgent({ id: "universal", name: "Universal", role: "$30K / 60% royalty", type: "bidder", x: cx - 320, y: cy - 130 }),
-      sony:      makeAgent({ id: "sony", name: "Sony", role: "base terms", type: "bidder", x: cx - 360, y: cy }),
-      indie:     makeAgent({ id: "indie", name: "Indie Dist.", role: "$20K / 70% royalty", type: "bidder", x: cx - 320, y: cy + 130 }),
-      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "watching", type: "artist", x: cx + 320, y: cy }),
-    };
-  },
-  steps: [
-    () => { /* idle */ },
-    (now) => {
-      addTx({ from: "universal", to: "offering", color: "warn", label: "submitCounter · 5k MUSD bond", dur: 1500, curve: 30 });
-      byId("universal").flash = 1;
-      setTimeout(() => { byId("offering").balance = 5000; byId("offering").flash = 1; }, 1300);
-    },
-    (now) => {
-      addTx({ from: "sony", to: "offering", color: "warn", label: "acceptBaseTerms · 5k MUSD bond", dur: 1500 });
-      byId("sony").flash = 1;
-      setTimeout(() => { byId("offering").balance = 10000; byId("offering").flash = 1; }, 1300);
-    },
-    (now) => {
-      addTx({ from: "indie", to: "offering", color: "warn", label: "submitCounter · 5k MUSD bond", dur: 1500, curve: -30 });
-      byId("indie").flash = 1;
-      setTimeout(() => {
-        byId("offering").balance = 15000;
-        byId("offering").flash = 1;
-        byId("offering").note = "3 counters · 15k MUSD escrow";
-      }, 1300);
-    },
-  ],
-});
-
-// ─── Scene 4: "Sapta picks" ───────────────────────────────────────────
-SCENES.push({
-  name: "Sapta picks",
-  captions: [
-    "Sapta reviews the three counters off-chain — economics, brand fit, distribution reach. She picks Sony's base-terms offer.",
-    "Calls <code>acceptCounter(sonyId)</code>. Offering flips to <code>Accepted</code>. Sony's bond returns — the bond was earnest, not payment.",
-    "Universal calls <code>withdrawCounter</code>. Bond refunds, no fault. The status stays Pending until each loser self-withdraws.",
-    "Indie does the same. Capital out. <code>acceptedCounterId</code> is the canonical on-chain commitment — downstream contracts read from it.",
-  ],
-  setup() {
-    const cx = W / 2, cy = H / 2 - 20;
-    agents = {
-      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx + 320, y: cy }),
-      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "3 counters pending", type: "contract", x: cx, y: cy, balance: 15000 }),
-      universal: makeAgent({ id: "universal", name: "Universal", role: "$30K / 60%", type: "bidder", x: cx - 320, y: cy - 130 }),
-      sony:      makeAgent({ id: "sony", name: "Sony", role: "base terms", type: "bidder", x: cx - 360, y: cy }),
-      indie:     makeAgent({ id: "indie", name: "Indie Dist.", role: "$20K / 70%", type: "bidder", x: cx - 320, y: cy + 130 }),
-    };
-  },
-  steps: [
-    () => { /* idle */ },
-    (now) => {
-      // Sapta points at Sony — visual highlight
-      byId("sony").glow = 1;
-      byId("sapta").flash = 1;
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter(sony)", dur: 1600 });
-      setTimeout(() => {
-        byId("offering").note = "Status: Accepted";
-        byId("offering").flash = 1;
-        // Refund Sony's bond
-        addTx({ from: "offering", to: "sony", color: "ok", label: "bond → 5k MUSD", dur: 1200 });
-        byId("offering").balance = 10000;
-      }, 1500);
-    },
-    (now) => {
-      addTx({ from: "universal", to: "offering", color: "muted", label: "withdrawCounter", dur: 1100, curve: 30 });
-      setTimeout(() => {
-        addTx({ from: "offering", to: "universal", color: "ok", label: "bond → 5k MUSD", dur: 1100, curve: -30 });
-        byId("offering").balance = 5000;
-        byId("universal").glow = 0.2;
-      }, 900);
-    },
-    (now) => {
-      addTx({ from: "indie", to: "offering", color: "muted", label: "withdrawCounter", dur: 1100, curve: -30 });
-      setTimeout(() => {
-        addTx({ from: "offering", to: "indie", color: "ok", label: "bond → 5k MUSD", dur: 1100, curve: 30 });
-        byId("offering").balance = 0;
-        byId("offering").note = "Closed · acceptedCounterId = sony";
-        byId("indie").glow = 0.2;
-      }, 900);
-    },
-  ],
-});
-
-// ─── Scene 5: "The numbers roll in" ───────────────────────────────────
-SCENES.push({
-  name: "The numbers roll in",
-  captions: [
-    "A streaming period closes. Three Oracle pushers query DSP APIs and submit verified revenue to <code>MuzixStreamingOracle</code>.",
-    "Spotify: <code>$14,800</code>, confidence <code>9500 bps</code> (well over the 7500 floor).",
-    "Apple Music: <code>$6,400</code>, confidence <code>9200</code>. YouTube Music: <code>$3,200</code>, confidence <code>8800</code>.",
-    "Oracle updates the latest pointer. Total for the period: <code>$24,400</code> against Sapta's master. <code>isDataFresh</code> returns true.",
-  ],
-  setup() {
-    const cx = W / 2, cy = H / 2 - 20;
-    agents = {
-      spotify: makeAgent({ id: "spotify", name: "Spotify", role: "DSP pusher", type: "dsp", x: cx - 300, y: cy - 130 }),
-      apple:   makeAgent({ id: "apple", name: "Apple Music", role: "DSP pusher", type: "dsp", x: cx - 360, y: cy }),
-      youtube: makeAgent({ id: "youtube", name: "YouTube Music", role: "DSP pusher", type: "dsp", x: cx - 300, y: cy + 130 }),
-      oracle:  makeAgent({ id: "oracle", name: "Streaming Oracle", role: "verified revenue feed", type: "contract", x: cx, y: cy, note: "" }),
-      master:  makeAgent({ id: "master", name: "Sapta master", role: "catalog id", type: "wallet", x: cx + 320, y: cy }),
-    };
-  },
-  steps: [
-    () => { /* idle */ },
-    (now) => {
-      addTx({ from: "spotify", to: "oracle", color: "dsp", label: "$14.8k · 9500 bps", dur: 1400, curve: 20 });
-      byId("spotify").flash = 1;
-      setTimeout(() => { byId("oracle").note = "+ Spotify"; byId("oracle").flash = 1; }, 1200);
-    },
-    (now) => {
-      addTx({ from: "apple", to: "oracle", color: "dsp", label: "$6.4k · 9200 bps", dur: 1400 });
-      byId("apple").flash = 1;
-      setTimeout(() => { byId("oracle").note = "+ Apple"; byId("oracle").flash = 1; }, 1200);
-      setTimeout(() => {
-        addTx({ from: "youtube", to: "oracle", color: "dsp", label: "$3.2k · 8800 bps", dur: 1400, curve: -20 });
-        byId("youtube").flash = 1;
-      }, 700);
-    },
-    (now) => {
-      byId("oracle").note = "Latest: $24.4k · fresh";
-      byId("oracle").glow = 1;
-      byId("master").glow = 0.6;
-      byId("master").balance = 24400;
-    },
-  ],
-});
-
-// ─── Scene 6: "Mixdown pays out" ──────────────────────────────────────
-SCENES.push({
-  name: "Mixdown pays out",
-  captions: [
-    "Sony (the licensee from scene 4) routes the $24.4k stream revenue into <code>MUSD</code> against Sapta's master id.",
-    "MUSD reads <code>Labelton.capTableOf(masterId)</code>. The cap-table hasn't moved since registration — 60 / 20 / 20.",
-    "MUSD fans the payout: Sapta gets <code>$14,640</code>, Producer <code>$4,880</code>, Label <code>$4,880</code>. All atomic, on-chain.",
-    "The closed loop runs. Negotiation → registration → revenue → settlement, every step on-chain. Catalog has paid out for the first period.",
-  ],
-  setup() {
-    const cx = W / 2, cy = H / 2 - 20;
-    agents = {
-      sony:     makeAgent({ id: "sony", name: "Sony", role: "licensee", type: "bidder", x: cx - 320, y: cy }),
-      musd:     makeAgent({ id: "musd", name: "MUSD", role: "settlement stablecoin", type: "contract", x: cx, y: cy, note: "" }),
-      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "cap-table source", type: "contract", x: cx, y: cy - 150, r: 26 }),
-      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "60%", type: "artist", x: cx + 280, y: cy - 130, balance: 0 }),
-      producer: makeAgent({ id: "producer", name: "Producer", role: "20%", type: "wallet", x: cx + 320, y: cy, balance: 0 }),
-      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 280, y: cy + 130, balance: 0 }),
-    };
-  },
-  steps: [
-    () => { /* idle */ },
-    (now) => {
-      addTx({ from: "sony", to: "musd", color: "ok", label: "$24.4k revenue", dur: 1500 });
-      byId("sony").flash = 1;
-      setTimeout(() => { byId("musd").note = "received $24.4k"; byId("musd").flash = 1; }, 1300);
-    },
-    (now) => {
-      addTx({ from: "musd", to: "labelton", color: "signal", label: "capTableOf(masterId)", dur: 1100 });
+      // Bounce back as revert
+      addTx({ from: "labelton", to: "imposter", color: "hot", label: "revert: IsrcRootAlreadyRegistered", dur: 1300, curve: 40 });
       byId("labelton").flash = 1;
-      setTimeout(() => addTx({ from: "labelton", to: "musd", color: "signal", label: "[60/20/20]", dur: 1100, curve: 20 }), 1100);
-    },
-    (now) => {
-      setTimeout(() => { addTx({ from: "musd", to: "sapta", color: "ok", label: "$14,640", dur: 1300, curve: 30 }); byId("sapta").balance = 14640; }, 100);
-      setTimeout(() => { addTx({ from: "musd", to: "producer", color: "ok", label: "$4,880", dur: 1300 }); byId("producer").balance = 4880; }, 350);
-      setTimeout(() => { addTx({ from: "musd", to: "label", color: "ok", label: "$4,880", dur: 1300, curve: -30 }); byId("label").balance = 4880; }, 600);
       setTimeout(() => {
-        byId("musd").note = "fanned · 0 remaining";
-        byId("sapta").glow = 0.8;
-        byId("producer").glow = 0.8;
-        byId("label").glow = 0.8;
-      }, 1900);
-    },
-  ],
-});
-
-// ─── Scene 7: "Cut a remix" ────────────────────────────────────────────
-SCENES.push({
-  name: "Cut a remix",
-  captions: [
-    "Same master, different cut. Producer wants to release an instrumental remix of the album track. As a cap-table member of the original master, he's authorised to mint a new variant.",
-    "Producer calls <code>Labelton.mintVariant(masterId, VariantKind.Remix, isrc, uri)</code>. The DAO has enabled the Remix variant kind. The cap-table doesn't move.",
-    "Variant #2 mints. 10,000 ERC-1155 units fan by the same 60/20/20 split — Sapta still 6000, Producer 2000, Label 2000. <code>Cap-table inherited by construction.</code>",
-    "Catalog has a second tradable token now. Each variant lives independently — a sync deal on the original can run alongside a streaming deal on the remix without entangling the rights.",
-  ],
-  setup() {
-    const cx = W / 2, cy = H / 2 - 20;
-    agents = {
-      producer: makeAgent({ id: "producer", name: "Producer", role: "cap-table member", type: "wallet", x: cx - 300, y: cy }),
-      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "Master #1 only" }),
-      sapta:    makeAgent({ id: "sapta", name: "Sapta wallet", role: "60% share", type: "artist", x: cx + 260, y: cy - 130, shares: "6000" }),
-      prodHold: makeAgent({ id: "prodHold", name: "Producer wallet", role: "20% share", type: "wallet", x: cx + 300, y: cy, shares: "2000" }),
-      label:    makeAgent({ id: "label", name: "Label", role: "20% share", type: "label", x: cx + 260, y: cy + 130, shares: "2000" }),
-    };
-  },
-  steps: [
-    () => { /* idle */ },
-    (now) => {
-      addTx({ from: "producer", to: "labelton", color: "accent", label: "mintVariant · Remix", dur: 1500 });
-      byId("producer").flash = 1;
-      setTimeout(() => { byId("labelton").note = "Master #1 + Variant #2 (Remix)"; byId("labelton").flash = 1; }, 1300);
-    },
-    (now) => {
-      setTimeout(() => addTx({ from: "labelton", to: "sapta", color: "accent", label: "+6000 v2", dur: 1100, curve: 30 }), 80);
-      setTimeout(() => addTx({ from: "labelton", to: "prodHold", color: "accent", label: "+2000 v2", dur: 1100 }), 260);
-      setTimeout(() => addTx({ from: "labelton", to: "label", color: "accent", label: "+2000 v2", dur: 1100, curve: 30 }), 440);
-      setTimeout(() => {
-        byId("sapta").glow = 0.6; byId("prodHold").glow = 0.6; byId("label").glow = 0.6;
-      }, 1500);
-    },
-    (now) => {
-      byId("labelton").note = "2 variants · same cap-table";
-      byId("labelton").glow = 0.9;
-    },
-  ],
-});
-
-// ─── Scene 8: "AI training license" ───────────────────────────────────
-SCENES.push({
-  name: "AI training license",
-  captions: [
-    "A new kind of buyer arrives. An AI model lab wants to license Sapta's catalog for training. Different rights bundle, different counterparty class.",
-    "Sapta drafts a fresh offering: <code>RightsType.FullRights</code>, non-exclusive, 1-year term, <code>$40K upfront</code>, royalty per inference. Publishes to the marketplace.",
-    "The model lab calls <code>acceptBaseTerms</code> — AI labs usually don't negotiate training-data deals, they take or leave. <code>5k MUSD bond</code> escrows.",
-    "Sapta accepts. License live. The lab can now use the catalog for training; on-chain attestation that this is consented use, not scraped. <code>MuzixAIProvenance</code> can bind every model checkpoint back to this counter id.",
-  ],
-  setup() {
-    const cx = W / 2, cy = H / 2 - 20;
-    agents = {
-      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy }),
-      offering: makeAgent({ id: "offering", name: "Rights Offering", role: "AI-training draft", type: "contract", x: cx, y: cy, note: "" }),
-      ailab:    makeAgent({ id: "ailab", name: "AI model lab", role: "non-exclusive licensee", type: "bidder", x: cx + 300, y: cy }),
-      provenance: makeAgent({ id: "provenance", name: "AIProvenance", role: "attestation registry", type: "contract", x: cx, y: cy + 160, r: 26 }),
-    };
-  },
-  steps: [
-    () => { /* idle */ },
-    (now) => {
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering · AI training", dur: 1500 });
-      byId("sapta").flash = 1;
-      setTimeout(() => { byId("offering").note = "Status: Open · 1yr · $40k"; byId("offering").glow = 0.8; }, 1300);
-    },
-    (now) => {
-      addTx({ from: "ailab", to: "offering", color: "warn", label: "acceptBaseTerms · 5k MUSD bond", dur: 1500 });
-      byId("ailab").flash = 1;
-      setTimeout(() => { byId("offering").note = "+ AI lab counter"; byId("offering").flash = 1; }, 1300);
-    },
-    (now) => {
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter", dur: 1400 });
-      setTimeout(() => {
-        byId("offering").note = "Status: Accepted";
-        addTx({ from: "offering", to: "ailab", color: "ok", label: "bond → 5k MUSD", dur: 1100 });
-        byId("ailab").glow = 1;
-      }, 1200);
-    },
-    (now) => {
-      addTx({ from: "ailab", to: "provenance", color: "signal", label: "setProvenance(modelCkpt)", dur: 1300 });
-      setTimeout(() => { byId("provenance").note = "model bound to counterId"; byId("provenance").glow = 0.9; }, 1100);
-    },
-  ],
-});
-
-// ─── Scene 9: "Sync drops in" ─────────────────────────────────────────
-SCENES.push({
-  name: "Sync drops in",
-  captions: [
-    "A brand campaign needs 30 seconds of Sapta's track for an ad. Time-sensitive — they want it cleared in 48 hours.",
-    "Sapta posts a sync offering: <code>RightsType.Sync</code>, 90-day window, single-territory, <code>$8K flat</code>. No royalty tail — sync deals are usually one-shot.",
-    "The brand's agency calls <code>acceptBaseTerms</code>. Sync buyers almost never haggle — the artist's posted number is the deal or it isn't.",
-    "Sapta accepts the same day. Deal closes 47 hours ahead of campaign launch. The catalog just acted as its own sync clearing-house.",
-  ],
-  setup() {
-    const cx = W / 2, cy = H / 2 - 20;
-    agents = {
-      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy }),
-      offering: makeAgent({ id: "offering", name: "Rights Offering", role: "sync draft", type: "contract", x: cx, y: cy, note: "" }),
-      brand:    makeAgent({ id: "brand", name: "Brand agency", role: "30-sec sync buyer", type: "bidder", x: cx + 300, y: cy }),
-    };
-  },
-  steps: [
-    () => { /* idle */ },
-    (now) => {
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering · Sync · 90d · $8k", dur: 1500 });
-      byId("sapta").flash = 1;
-      setTimeout(() => { byId("offering").note = "Status: Open · sync"; byId("offering").glow = 0.8; }, 1300);
-    },
-    (now) => {
-      addTx({ from: "brand", to: "offering", color: "warn", label: "acceptBaseTerms", dur: 1400 });
-      byId("brand").flash = 1;
-      setTimeout(() => { byId("offering").note = "+ brand counter"; byId("offering").flash = 1; }, 1200);
-    },
-    (now) => {
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter · same day", dur: 1300 });
-      setTimeout(() => {
-        byId("offering").note = "Status: Accepted · 47h ahead";
-        byId("brand").glow = 1;
+        byId("imposter").note = "tx reverted";
+        byId("imposter").glow = 0.0;
+        byId("labelton").note = "Master #1 · ISRC locked";
+        byId("labelton").glow = 0.8;
       }, 1100);
     },
   ],
 });
 
-// ─── Scene 10: "Catalogue bundle" ─────────────────────────────────────
+// ─── Scene 3: "Cap-table sums or doesn't" ─────────────────────────────
 SCENES.push({
-  name: "Catalogue bundle",
+  name: "Cap-table sums or doesn't",
   captions: [
-    "Now scale up. Sapta drafts a catalogue-wide bundle — every master she controls, 5-year exclusive full rights, <code>$150K upfront / $400K MG / 70% royalty</code>. The big-ticket deal.",
-    "Three counterparties show up. Universal counters higher upfront. Sony counters higher royalty share at lower upfront. The AI lab counters with a carve-out — full rights minus training, for less.",
-    "All three bonds escrow. The marketplace works the same at catalogue scale as at single-track scale — same contract, different subject manifest.",
-    "Sapta picks Universal (highest expected value, best brand fit). Losing counters self-withdraw their bonds. Catalogue is licensed for 5 years.",
+    "The invariant: cap-table shares must sum to exactly <code>10000 bps</code>. Anything else is malformed and gets rejected.",
+    "Attempt #1 — Sapta 60% + Producer 25% = <code>8500 bps</code>. Calls <code>registerMaster</code>; contract reverts with <code>CapTableSharesDoNotSum(8500)</code>. Capital saved, no master created.",
+    "Attempt #2 — Sapta 60% + Producer 20% + Label 20% = <code>10000 bps</code> exactly. Same call, this time it lands. Master gets a fresh id.",
   ],
   setup() {
     const cx = W / 2, cy = H / 2 - 20;
     agents = {
-      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "artist · catalogue", type: "artist", x: cx + 320, y: cy }),
-      offering:  makeAgent({ id: "offering", name: "Rights Offering", role: "catalogue draft", type: "contract", x: cx, y: cy, note: "" }),
-      universal: makeAgent({ id: "universal", name: "Universal", role: "$200K / 65%", type: "bidder", x: cx - 320, y: cy - 130 }),
-      sony:      makeAgent({ id: "sony", name: "Sony", role: "$130K / 75%", type: "bidder", x: cx - 360, y: cy }),
-      ailab:     makeAgent({ id: "ailab", name: "AI lab", role: "carve-out, lower", type: "bidder", x: cx - 320, y: cy + 130 }),
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "registrant", type: "artist", x: cx - 320, y: cy }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "25%", type: "wallet", x: cx + 240, y: cy - 130 }),
+      label:    makeAgent({ id: "label", name: "Label", role: "missing", type: "label", x: cx + 240, y: cy + 130, hidden: true }),
     };
   },
   steps: [
     () => { /* idle */ },
     (now) => {
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "createOffering · catalogue · 5y · $150K", dur: 1500 });
-      setTimeout(() => { byId("offering").note = "Status: Open · catalogue"; byId("offering").glow = 0.8; }, 1300);
-    },
-    (now) => {
-      addTx({ from: "universal", to: "offering", color: "warn", label: "$200K / 65%", dur: 1400, curve: 30 });
-      setTimeout(() => addTx({ from: "sony", to: "offering", color: "warn", label: "$130K / 75%", dur: 1400 }), 250);
-      setTimeout(() => addTx({ from: "ailab", to: "offering", color: "warn", label: "training carve-out", dur: 1400, curve: -30 }), 500);
-      byId("universal").flash = 1; byId("sony").flash = 1; byId("ailab").flash = 1;
-      setTimeout(() => { byId("offering").note = "3 counters · 25k MUSD escrow"; byId("offering").flash = 1; }, 2000);
-    },
-    (now) => {
-      byId("universal").glow = 1;
-      addTx({ from: "sapta", to: "offering", color: "accent", label: "acceptCounter(universal)", dur: 1500 });
+      addTx({ from: "sapta", to: "labelton", color: "warn", label: "registerMaster · bps = 8500", dur: 1500 });
+      byId("sapta").flash = 1;
       setTimeout(() => {
-        byId("offering").note = "Status: Accepted · 5y exclusive";
-        addTx({ from: "offering", to: "universal", color: "ok", label: "bond refund", dur: 1100, curve: 30 });
-        addTx({ from: "offering", to: "sony", color: "ok", label: "bond refund", dur: 1100 });
-        addTx({ from: "offering", to: "ailab", color: "ok", label: "bond refund", dur: 1100, curve: -30 });
+        addTx({ from: "labelton", to: "sapta", color: "hot", label: "revert: CapTableSharesDoNotSum(8500)", dur: 1300, curve: 40 });
+        byId("labelton").flash = 1;
+        byId("labelton").note = "bps != 10000 · rejected";
       }, 1300);
+    },
+    (now) => {
+      // Label appears — third holder for 20%
+      byId("label").hidden = false;
+      byId("label").appear = 0;
+      byId("label").role = "20%";
+      byId("producer").role = "20%";
+      addTx({ from: "sapta", to: "labelton", color: "accent", label: "registerMaster · bps = 10000", dur: 1500, curve: -30 });
+      setTimeout(() => {
+        byId("labelton").note = "Master #2 · cap-table OK";
+        byId("labelton").glow = 0.8;
+        byId("sapta").shares = "6000";
+        byId("producer").shares = "2000";
+        byId("label").shares = "2000";
+      }, 1400);
+    },
+  ],
+});
+
+// ─── Scene 4: "Cut a remix" ───────────────────────────────────────────
+SCENES.push({
+  name: "Cut a remix",
+  captions: [
+    "Sapta's master is live, but variant kinds beyond <code>Master</code> default to <code>off</code>. To allow remixes, the DAO has to flip the switch.",
+    "DAO calls <code>setVariantKindAllowed(VariantKind.Remix, true)</code>. Only the protocol owner (Muzix DAO) can. Issuance is still wallet-sovereign — this is a config change, not a mint.",
+    "Producer — a cap-table member — calls <code>mintVariant(masterId, VariantKind.Remix, isrc, uri_)</code>. The membership check passes; the kind is allowed.",
+    "A new variant mints. The same cap-table fans across the new id: Sapta 6000, Producer 2000, Label 2000. By construction.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      dao:      makeAgent({ id: "dao", name: "Muzix DAO", role: "protocol owner", type: "dao", x: cx - 330, y: cy - 150 }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "Remix: disallowed" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "cap-table member · 20%", type: "wallet", x: cx - 320, y: cy + 60 }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta wallet", role: "60%", type: "wallet", x: cx + 240, y: cy - 110, shares: "6000" }),
+      producerHold: makeAgent({ id: "producerHold", name: "Producer wallet", role: "20%", type: "wallet", x: cx + 280, y: cy, shares: "2000", hidden: true }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 240, y: cy + 110, shares: "2000" }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "dao", to: "labelton", color: "dao", label: "setVariantKindAllowed(Remix, true)", dur: 1500 });
+      byId("dao").flash = 1;
+      setTimeout(() => {
+        byId("labelton").note = "Remix: allowed";
+        byId("labelton").flash = 1;
+        byId("labelton").glow = 0.6;
+      }, 1300);
+    },
+    (now) => {
+      addTx({ from: "producer", to: "labelton", color: "accent", label: "mintVariant(Remix, ...)", dur: 1500 });
+      byId("producer").flash = 1;
+      setTimeout(() => {
+        byId("labelton").note = "Variant #2 (Remix) minted";
+        byId("labelton").flash = 1;
+      }, 1300);
+    },
+    (now) => {
+      // Reveal Producer holder; fan the new variant supply to the same cap-table
+      byId("producerHold").hidden = false;
+      byId("producerHold").appear = 0;
+      setTimeout(() => addTx({ from: "labelton", to: "saptaHold", color: "accent", label: "6000", dur: 1100, curve: 30 }), 80);
+      setTimeout(() => addTx({ from: "labelton", to: "producerHold", color: "accent", label: "2000", dur: 1100 }), 260);
+      setTimeout(() => addTx({ from: "labelton", to: "label", color: "accent", label: "2000", dur: 1100, curve: -30 }), 440);
+      setTimeout(() => {
+        byId("saptaHold").glow = 0.7;
+        byId("producerHold").glow = 0.7;
+        byId("label").glow = 0.7;
+      }, 1500);
+    },
+  ],
+});
+
+// ─── Scene 5: "Not a member, not your mint" ───────────────────────────
+SCENES.push({
+  name: "Not a member, not your mint",
+  captions: [
+    "A stranger — not on the cap-table — tries to mint a variant against Sapta's master. <code>mintVariant(masterId, VariantKind.Remix, ...)</code>",
+    "Labelton iterates <code>_capTables[masterId]</code> looking for <code>msg.sender</code>. Not found. Reverts with <code>NotMasterMember(masterId, stranger)</code>. Wallet-sovereign, but cap-table-gated.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      stranger: makeAgent({ id: "stranger", name: "Stranger", role: "not on cap-table", type: "wallet", x: cx - 320, y: cy }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy, note: "cap-table: [Sapta, Producer, Label]" }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta", role: "60%", type: "artist", x: cx + 280, y: cy - 110, shares: "6000" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "20%", type: "wallet", x: cx + 320, y: cy, shares: "2000" }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 280, y: cy + 110, shares: "2000" }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "stranger", to: "labelton", color: "warn", label: "mintVariant(Remix, ...)", dur: 1500 });
+      byId("stranger").flash = 1;
+    },
+    (now) => {
+      addTx({ from: "labelton", to: "stranger", color: "hot", label: "revert: NotMasterMember", dur: 1300, curve: 40 });
+      byId("labelton").flash = 1;
+      setTimeout(() => {
+        byId("stranger").note = "tx reverted";
+        byId("labelton").note = "membership check failed";
+        byId("labelton").glow = 0.8;
+      }, 1100);
+    },
+  ],
+});
+
+// ─── Scene 6: "The membership snapshot quirk" ─────────────────────────
+SCENES.push({
+  name: "The membership snapshot quirk",
+  captions: [
+    "Variant #1 trades on the open market — ERC-1155 is composable. Sapta lists her 6000 units to a Buyer.",
+    "Sapta calls <code>safeTransferFrom(sapta, buyer, variantId, 6000, \"\")</code>. The ERC-1155 balance moves. Buyer now economically holds 60% of variant #1.",
+    "But: <code>_capTables[masterId]</code> is a frozen snapshot taken at <code>registerMaster</code>. Buyer is NOT in it. When Buyer tries <code>mintVariant</code>, it reverts with <code>NotMasterMember</code> — Sapta still owns the mint authority even with zero balance. Honest design tension: economic share ≠ mint right. Future governance call.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "cap-table seat", type: "artist", x: cx - 280, y: cy - 60, shares: "6000" }),
+      buyer:    makeAgent({ id: "buyer", name: "Buyer", role: "open-market", type: "wallet", x: cx - 280, y: cy + 130 }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx + 60, y: cy, note: "snapshot: [Sapta, Producer, Label]" }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "20%", type: "wallet", x: cx + 320, y: cy - 110, shares: "2000" }),
+      label:    makeAgent({ id: "label", name: "Label", role: "20%", type: "label", x: cx + 320, y: cy + 110, shares: "2000" }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "buyer", color: "accent", label: "safeTransferFrom · 6000 units", dur: 1500 });
+      byId("sapta").flash = 1;
+      setTimeout(() => {
+        byId("sapta").shares = "0";
+        byId("buyer").shares = "6000";
+        byId("buyer").glow = 0.7;
+        byId("buyer").note = "60% economic";
+      }, 1300);
+    },
+    (now) => {
+      // Buyer tries to mint — reverts
+      addTx({ from: "buyer", to: "labelton", color: "warn", label: "mintVariant · attempt", dur: 1400 });
+      setTimeout(() => {
+        addTx({ from: "labelton", to: "buyer", color: "hot", label: "revert: NotMasterMember", dur: 1200, curve: 40 });
+        byId("labelton").flash = 1;
+        byId("sapta").glow = 0.8;
+        byId("sapta").note = "still has mint right";
+        byId("buyer").note = "economic only";
+      }, 1100);
+    },
+  ],
+});
+
+// ─── Scene 7: "AI provenance binds" ───────────────────────────────────
+SCENES.push({
+  name: "AI provenance binds",
+  captions: [
+    "Sapta wants to bind a provenance record to variant #1 — list the AI models used, the IP lineage, and a content-hash of the production notes.",
+    "She calls <code>MuzixAIProvenance.setProvenance(labelton, variantId, humanOnly=false, [aiModelTokens], [ipLineageURIs], provenanceHash)</code>. The <code>catalog</code> arg is the Labelton contract address; <code>tokenId</code> is the variant id.",
+    "The provenance record is stored, keyed by <code>(catalog, tokenId)</code>. Reads are public — labels, DSPs, sync agencies can query it without permission. Bound to the variant, not the wallet.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      sapta:     makeAgent({ id: "sapta", name: "Sapta", role: "minter of variant #1", type: "artist", x: cx - 320, y: cy }),
+      labelton:  makeAgent({ id: "labelton", name: "Labelton", role: "catalog address", type: "contract", x: cx, y: cy - 130 }),
+      provenance:makeAgent({ id: "provenance", name: "AIProvenance", role: "(catalog, tokenId) → record", type: "contract", x: cx, y: cy + 60, note: "" }),
+      readers:   makeAgent({ id: "readers", name: "Readers", role: "labels · DSPs · sync", type: "wallet", x: cx + 320, y: cy + 60 }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "sapta", to: "provenance", color: "accent", label: "setProvenance(labelton, variantId, ...)", dur: 1600 });
+      byId("sapta").flash = 1;
+      // Show the catalog identifier handshake
+      setTimeout(() => addTx({ from: "labelton", to: "provenance", color: "signal", label: "catalog = labelton", dur: 1100, curve: -30 }), 400);
+    },
+    (now) => {
+      byId("provenance").note = "record stored · (labelton, #1)";
+      byId("provenance").glow = 0.9;
+      byId("provenance").flash = 1;
+    },
+    (now) => {
+      addTx({ from: "readers", to: "provenance", color: "signal", label: "getProvenance(labelton, #1)", dur: 1300, curve: 20 });
+      setTimeout(() => addTx({ from: "provenance", to: "readers", color: "signal", label: "humanOnly=false · models · lineage", dur: 1300, curve: -20 }), 1200);
+      byId("readers").flash = 1;
+    },
+  ],
+});
+
+// ─── Scene 8: "DAO emergency pause" ───────────────────────────────────
+SCENES.push({
+  name: "DAO emergency pause",
+  captions: [
+    "Something on-chain looks off. The Muzix DAO flips the pause switch — <code>setPaused(true)</code>. Only the protocol owner can.",
+    "Sapta tries to register a new master while paused. <code>registerMaster</code> hits the first guard — <code>if (paused) revert LabeltonPaused();</code> — and reverts.",
+    "DAO investigates, decides it's clear. Calls <code>setPaused(false)</code>. Pause flag clears; the contract is live again.",
+    "Sapta retries. Same call, same payload. This time the cap-table commits, the root variant mints, and the master is on-chain.",
+  ],
+  setup() {
+    const cx = W / 2, cy = H / 2 - 20;
+    agents = {
+      dao:      makeAgent({ id: "dao", name: "Muzix DAO", role: "protocol owner", type: "dao", x: cx, y: cy - 170 }),
+      sapta:    makeAgent({ id: "sapta", name: "Sapta", role: "artist", type: "artist", x: cx - 300, y: cy + 30 }),
+      labelton: makeAgent({ id: "labelton", name: "Labelton", role: "rights registry", type: "contract", x: cx, y: cy + 30, note: "paused: false" }),
+      saptaHold:makeAgent({ id: "saptaHold", name: "Sapta wallet", role: "cap-table holder", type: "wallet", x: cx + 260, y: cy - 50, hidden: true }),
+      producer: makeAgent({ id: "producer", name: "Producer", role: "credit", type: "wallet", x: cx + 290, y: cy + 30, hidden: true }),
+      label:    makeAgent({ id: "label", name: "Label", role: "credit", type: "label", x: cx + 260, y: cy + 110, hidden: true }),
+    };
+  },
+  steps: [
+    () => { /* idle */ },
+    (now) => {
+      addTx({ from: "dao", to: "labelton", color: "dao", label: "setPaused(true)", dur: 1500 });
+      byId("dao").flash = 1;
+      setTimeout(() => {
+        byId("labelton").note = "paused: true";
+        byId("labelton").glow = 0.8;
+        byId("labelton").flash = 1;
+      }, 1300);
+    },
+    (now) => {
+      addTx({ from: "sapta", to: "labelton", color: "warn", label: "registerMaster", dur: 1400 });
+      setTimeout(() => {
+        addTx({ from: "labelton", to: "sapta", color: "hot", label: "revert: LabeltonPaused", dur: 1200, curve: 40 });
+        byId("sapta").note = "tx reverted";
+      }, 1200);
+    },
+    (now) => {
+      addTx({ from: "dao", to: "labelton", color: "dao", label: "setPaused(false)", dur: 1400 });
+      setTimeout(() => {
+        byId("labelton").note = "paused: false";
+        byId("labelton").glow = 0.6;
+        byId("sapta").note = "";
+      }, 1200);
+    },
+    (now) => {
+      addTx({ from: "sapta", to: "labelton", color: "accent", label: "registerMaster (retry)", dur: 1500 });
+      byId("saptaHold").hidden = false; byId("saptaHold").appear = 0;
+      byId("producer").hidden = false; byId("producer").appear = 0;
+      byId("label").hidden = false; byId("label").appear = 0;
+      setTimeout(() => {
+        byId("labelton").note = "Master committed · root mint";
+        byId("labelton").flash = 1;
+        addTx({ from: "labelton", to: "saptaHold", color: "accent", label: "6000", dur: 1100, curve: 30 });
+        addTx({ from: "labelton", to: "producer", color: "accent", label: "2000", dur: 1100 });
+        addTx({ from: "labelton", to: "label", color: "accent", label: "2000", dur: 1100, curve: -30 });
+      }, 1400);
+      setTimeout(() => {
+        byId("saptaHold").shares = "6000";
+        byId("producer").shares = "2000";
+        byId("label").shares = "2000";
+        byId("saptaHold").glow = 0.6;
+        byId("producer").glow = 0.6;
+        byId("label").glow = 0.6;
+      }, 2700);
     },
   ],
 });
@@ -1133,7 +1098,7 @@ function buildSceneBar() {
   });
   const ph = document.createElement("span");
   ph.className = "placeholder";
-  ph.innerHTML = `+ add your scene <a href="https://github.com/kcolbchain/muzix/blob/main/web/public/mixdown.html" target="_blank">→</a>`;
+  ph.innerHTML = `+ add your scene <a href="https://github.com/kcolbchain/muzix/blob/main/web/public/labelton.html" target="_blank">→</a>`;
   sceneBar.appendChild(ph);
 }
 
