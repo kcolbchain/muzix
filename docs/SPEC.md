@@ -14,3 +14,20 @@ Each NFT is linked to a `MusicMetadata` struct containing:
 - Platforms deposit ETH via `depositStreamingRevenue(tokenId)`.
 - Stakeholders use `claimRevenue(tokenId)` to withdraw their specific balance.
 - **Security:** ReentrancyGuard and Pull-Payment pattern implemented.
+
+## 4. MUSD Royalty Stablecoin
+- **Pull-Payment:** Royalties are escrowed in MUSD contract; recipients call `claimPayments()` to withdraw.
+- **Batch Distribution:** Owner can process multiple token royalty events atomically via `batchRoyaltyDistribution()`.
+- **Integration:** MUSD pulls royalty splits from MuzixCatalog; streaming oracle feeds revenue data to trigger distributions.
+- See [MUSD_SPEC.md](MUSD_SPEC.md) for full technical details.
+
+## 5. AI Provenance
+- `MuzixAIProvenance` bridges ERC-721-AI model tokens to music NFTs.
+- Opt-in, non-invasive — MuzixCatalog is not modified.
+- Supports human-only attestation and multi-model lineage.
+- See [ai-provenance.md](ai-provenance.md) for design.
+
+## 6. Rights Registry (Labelton)
+- `MuzixRightsOffering` enables on-chain term-sheet negotiation for music rights.
+- ERC-1155 multi-variant minter for split rights (master, publishing, neighboring).
+- See [labelton-architecture.md](labelton-architecture.md) for details.

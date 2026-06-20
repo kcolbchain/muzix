@@ -59,9 +59,54 @@ contract MuzixCatalogTest is Test {
 
         catalog.setRoyaltySplit(tokenId, recipients, shares);
 
-        // setRoyaltySplit configures a 10% (1000 bps) pool royalty to the contract address.
+        // setRoyaltySplit sets ERC2981 royalty to the recipient with the largest share.
+        // artist has 70% (7000 bps) > label 30% (3000 bps), so artist is the royalty receiver.
         (address receiver, uint256 royaltyAmount) = catalog.royaltyInfo(tokenId, 1 ether);
-        assertEq(receiver, address(catalog));
-        assertEq(royaltyAmount, 0.1 ether);
+        assertEq(receiver, artist);
+        assertEq(royaltyAmount, 0.7 ether);
+    }
+
+    function testRoyaltySplitEqualShares() public {
+        MuzixCatalog.MusicMetadata memory metadata = MuzixCatalog.MusicMetadata({
+            isrc: "EQUAL-SPLIT",
+            artist: "Test Artist"
+        });
+
+        uint256 tokenId = catalog.mintMusic("ipfs://equal", metadata);
+
+        address[] memory recipients = new address[](2);
+        recipients[0] = artist;
+        recipients[1] = label;
+
+        uint16[] memory shares = new uint16[](2);
+        shares[0] = 5000;
+        shares[1] = 5000;
+
+        catalog.setRoyaltySplit(tokenId, recipients, shares);
+
+        // Equal shares: first recipient with max share wins (artist).
+        (address receiver, uint256 royaltyAmount) = catalog.royaltyInfo(tokenId, 1 ether);
+        assertEq(receiver, artist);
+        assertEq(royaltyAmount, 0.5 ether);
+    }
+
+    function testRoyaltySplitNoRecipients() public {
+        MuzixCatalog.MusicMetadata memory metadata = MuzixCatalog.MusicMetadata({
+            isrc: "NO-RECIPIENTS",
+            artist: "Test Artist"
+        });
+
+        uint256 tokenId = catalog.mintMusic("ipfs://no-recipients", metadata);
+
+        address[] memory recipients = new address[](0);
+        uint16[] memory shares = new uint16[](0);
+
+        // Should not revert — empty splits just means no royalty configured.
+        catalog.setRoyaltySplit(tokenId, recipients, shares);
+
+        // With no recipients, royalty defaults to 0.
+        (address receiver, uint256 royaltyAmount) = catalog.royaltyInfo(tokenId, 1 ether);
+        assertEq(receiver, address(0));
+        assertEq(royaltyAmount, 0);
     }
 }
