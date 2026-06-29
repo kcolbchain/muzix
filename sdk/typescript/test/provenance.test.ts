@@ -215,6 +215,51 @@ describe('ProvenanceModule — writes', () => {
     expect(ph).toBe(explicit);
   });
 
+  it('accepts a valid humanOnly attestation with no models and auto-hashes it', async () => {
+    const harness = makeHarness();
+    const muzix = createMuzixClient({
+      contracts: { catalog: CATALOG, musd: MUSD, provenance: PROVENANCE },
+      publicClient: harness.publicClient,
+      walletClient: harness.walletClient,
+    });
+
+    await muzix.provenance.setProvenance({
+      catalog: CATALOG,
+      tokenId: 4n,
+      humanOnly: true,
+      aiModelTokens: [],
+      ipLineageURIs: [],
+    });
+
+    const tx = harness.provider.sentTxs[0]!;
+    const decoded = decodeFunctionData({
+      abi: MuzixAIProvenanceAbi,
+      data: tx.data!,
+    });
+    expect(decoded.functionName).toBe('setProvenance');
+    const [catalog, tokenId, humanOnly, models, uris, provenanceHash] =
+      decoded.args as [
+        Address,
+        bigint,
+        boolean,
+        readonly Address[],
+        readonly string[],
+        Hex,
+      ];
+    expect(catalog.toLowerCase()).toBe(CATALOG.toLowerCase());
+    expect(tokenId).toBe(4n);
+    expect(humanOnly).toBe(true);
+    expect(models).toEqual([]);
+    expect(uris).toEqual([]);
+    expect(provenanceHash).toBe(
+      computeProvenanceHash({
+        humanOnly: true,
+        aiModelTokens: [],
+        ipLineageURIs: [],
+      }),
+    );
+  });
+
   it('exposes the right function selector on clearProvenance', async () => {
     const harness = makeHarness();
     const muzix = createMuzixClient({
@@ -262,5 +307,33 @@ describe('computeProvenanceHash', () => {
       ipLineageURIs: ['ipfs://u'],
     });
     expect(h1).not.toBe(h2);
+  });
+
+  // Golden vectors freeze the exact off-chain binding so a refactor that
+  // silently diverges from the on-chain
+  // `keccak256(abi.encode(bool, address[], string[]))` in MuzixAIProvenance.sol
+  // fails loudly. These values were produced by the canonical binding itself.
+  it('matches a frozen golden vector for a humanOnly attestation', () => {
+    expect(
+      computeProvenanceHash({
+        humanOnly: true,
+        aiModelTokens: [],
+        ipLineageURIs: [],
+      }),
+    ).toBe(
+      '0x5fb6d5618d90361cd0c3a31bcdb62857d8fc5803475e8169d3dabe81219a3b43',
+    );
+  });
+
+  it('matches a frozen golden vector for multi-model AI provenance', () => {
+    expect(
+      computeProvenanceHash({
+        humanOnly: false,
+        aiModelTokens: [MODEL_A, MODEL_B],
+        ipLineageURIs: ['ipfs://u1'],
+      }),
+    ).toBe(
+      '0x03f2e5fe4e174905fb43ed3e418de800e163d60f9dc52bdb5411cce23d08d40f',
+    );
   });
 });

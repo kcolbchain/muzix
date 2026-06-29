@@ -51,6 +51,60 @@ describe('MusdModule — reads', () => {
       ),
     ).toBe(42n);
   });
+
+  it('reads totalSupply', async () => {
+    const harness = makeHarness({
+      eth_call: () =>
+        encodeFunctionResult({
+          abi: MUSDAbi,
+          functionName: 'totalSupply',
+          result: 21_000_000n,
+        }) as Hex,
+    });
+    const muzix = createMuzixClient({
+      contracts: { catalog: CATALOG, musd: MUSD },
+      publicClient: harness.publicClient,
+    });
+    expect(await muzix.musd.totalSupply()).toBe(21_000_000n);
+  });
+
+  it('reads allowance', async () => {
+    const harness = makeHarness({
+      eth_call: () =>
+        encodeFunctionResult({
+          abi: MUSDAbi,
+          functionName: 'allowance',
+          result: 555n,
+        }) as Hex,
+    });
+    const muzix = createMuzixClient({
+      contracts: { catalog: CATALOG, musd: MUSD },
+      publicClient: harness.publicClient,
+    });
+    const got = await muzix.musd.allowance(
+      '0x1111111111111111111111111111111111111111',
+      '0x2222222222222222222222222222222222222222',
+    );
+    expect(got).toBe(555n);
+  });
+
+  it('coerces decimals to a JS number', async () => {
+    const harness = makeHarness({
+      eth_call: () =>
+        encodeFunctionResult({
+          abi: MUSDAbi,
+          functionName: 'decimals',
+          result: 18,
+        }) as Hex,
+    });
+    const muzix = createMuzixClient({
+      contracts: { catalog: CATALOG, musd: MUSD },
+      publicClient: harness.publicClient,
+    });
+    const got = await muzix.musd.decimals();
+    expect(got).toBe(18);
+    expect(typeof got).toBe('number');
+  });
 });
 
 describe('MusdModule — writes', () => {
@@ -105,5 +159,59 @@ describe('MusdModule — writes', () => {
     const decoded = decodeFunctionData({ abi: MUSDAbi, data: tx.data! });
     expect(decoded.functionName).toBe('approve');
     expect(decoded.args?.[1]).toBe(777n);
+  });
+
+  it('sends transfer to the MUSD contract with encoded recipient + amount', async () => {
+    const to: Address = '0x6666666666666666666666666666666666666666';
+    const harness = makeHarness();
+    const muzix = createMuzixClient({
+      contracts: { catalog: CATALOG, musd: MUSD },
+      publicClient: harness.publicClient,
+      walletClient: harness.walletClient,
+    });
+    const { hash } = await muzix.musd.transfer({ to, amount: 1_000_000n });
+    expect(hash.startsWith('0x')).toBe(true);
+    expect(harness.provider.sentTxs).toHaveLength(1);
+    const tx = harness.provider.sentTxs[0]!;
+    expect(tx.to?.toLowerCase()).toBe(MUSD.toLowerCase());
+    const decoded = decodeFunctionData({ abi: MUSDAbi, data: tx.data! });
+    expect(decoded.functionName).toBe('transfer');
+    const [recipient, amount] = decoded.args as [Address, bigint];
+    expect(recipient.toLowerCase()).toBe(to.toLowerCase());
+    expect(amount).toBe(1_000_000n);
+  });
+
+  it('sends mint with encoded recipient + amount', async () => {
+    const to: Address = '0x7777777777777777777777777777777777777777';
+    const harness = makeHarness();
+    const muzix = createMuzixClient({
+      contracts: { catalog: CATALOG, musd: MUSD },
+      publicClient: harness.publicClient,
+      walletClient: harness.walletClient,
+    });
+    await muzix.musd.mint({ to, amount: 500_000n });
+    const tx = harness.provider.sentTxs[0]!;
+    expect(tx.to?.toLowerCase()).toBe(MUSD.toLowerCase());
+    const decoded = decodeFunctionData({ abi: MUSDAbi, data: tx.data! });
+    expect(decoded.functionName).toBe('mint');
+    const [recipient, amount] = decoded.args as [Address, bigint];
+    expect(recipient.toLowerCase()).toBe(to.toLowerCase());
+    expect(amount).toBe(500_000n);
+  });
+
+  it('sends transferWithRoyalty into the pull-payment ledger by tokenId', async () => {
+    const harness = makeHarness();
+    const muzix = createMuzixClient({
+      contracts: { catalog: CATALOG, musd: MUSD },
+      publicClient: harness.publicClient,
+      walletClient: harness.walletClient,
+    });
+    await muzix.musd.transferWithRoyalty({ tokenId: 3n, amount: 250_000n });
+    const tx = harness.provider.sentTxs[0]!;
+    const decoded = decodeFunctionData({ abi: MUSDAbi, data: tx.data! });
+    expect(decoded.functionName).toBe('transferWithRoyalty');
+    const [tokenId, amount] = decoded.args as [bigint, bigint];
+    expect(tokenId).toBe(3n);
+    expect(amount).toBe(250_000n);
   });
 });
